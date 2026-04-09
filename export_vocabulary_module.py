@@ -57,7 +57,7 @@ def write_module(entries):
     payload = json.dumps(entries, ensure_ascii=True, separators=(",", ":"))
     content = (
         "// Generated from jlpt_n5_vocab.db by export_vocabulary_module.py\n"
-        "window.VOCABULARY_DATA = Object.freeze("
+        "export const VOCABULARY_DATA = Object.freeze("
         + payload
         + ");\n"
     )
