@@ -53,6 +53,12 @@ export function createApp(options = {}) {
   var dom = getDomRefs(doc);
   var scratchpad = createScratchpad(dom.writing.canvas, {
     view: doc.defaultView || null,
+    getStrokeStyle: function (canvas) {
+      var computedStyle = (doc.defaultView || window).getComputedStyle(canvas);
+      var cssValue = computedStyle.getPropertyValue("--scratchpad-ink").trim();
+
+      return cssValue || "#111111";
+    },
   });
   var appState = {
     run: null,

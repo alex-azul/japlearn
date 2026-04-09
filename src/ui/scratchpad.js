@@ -10,6 +10,7 @@ function getRelativePoint(canvas, event) {
 export function createScratchpad(canvas, options = {}) {
   var view = options.view || canvas.ownerDocument.defaultView || null;
   var strokeStyle = options.strokeStyle || "#111111";
+  var getStrokeStyle = options.getStrokeStyle;
   var lineWidth = options.lineWidth || 6;
   var context = null;
   var cssWidth = 0;
@@ -18,12 +19,20 @@ export function createScratchpad(canvas, options = {}) {
   var activePointerId = null;
   var lastPoint = null;
 
+  function resolveStrokeStyle() {
+    if (typeof getStrokeStyle === "function") {
+      return getStrokeStyle(canvas) || strokeStyle;
+    }
+
+    return strokeStyle;
+  }
+
   function configureContext() {
     if (!context) {
       return;
     }
 
-    context.strokeStyle = strokeStyle;
+    context.strokeStyle = resolveStrokeStyle();
     context.lineWidth = lineWidth;
     context.lineCap = "round";
     context.lineJoin = "round";
@@ -83,6 +92,7 @@ export function createScratchpad(canvas, options = {}) {
       return;
     }
 
+    configureContext();
     isDrawing = true;
     activePointerId = event.pointerId;
     lastPoint = getRelativePoint(canvas, event);
