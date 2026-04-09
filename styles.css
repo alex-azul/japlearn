@@ -10,6 +10,7 @@
   --text: #1f1b16;
   --text-soft: rgba(31, 27, 22, 0.68);
   --muted: #716657;
+  --danger: #a33d46;
   --accent: #b44f1f;
   --accent-strong: #8f3611;
   --accent-text: #fffaf3;
@@ -36,6 +37,7 @@
   --text: #f1e7d8;
   --text-soft: rgba(241, 231, 216, 0.64);
   --muted: #c0b09a;
+  --danger: #ff9fa4;
   --accent: #da7c47;
   --accent-strong: #e89566;
   --accent-text: #1a120d;
@@ -56,6 +58,7 @@
     --text: #f1e7d8;
     --text-soft: rgba(241, 231, 216, 0.64);
     --muted: #c0b09a;
+    --danger: #ff9fa4;
     --accent: #da7c47;
     --accent-strong: #e89566;
     --accent-text: #1a120d;
@@ -162,6 +165,7 @@ select {
 
 .start-card,
 .practice-card,
+.writing-card,
 .review-card,
 .failure-card,
 .stat-card,
@@ -354,6 +358,10 @@ h1 {
   padding: 30px;
 }
 
+.writing-card {
+  padding: 32px;
+}
+
 .japanese-display {
   font-family: var(--jp-font);
   font-weight: 700;
@@ -414,6 +422,81 @@ h1 {
 
 .text-answer-button {
   flex-shrink: 0;
+}
+
+.writing-panel {
+  display: grid;
+  gap: 28px;
+}
+
+.writing-section-label {
+  display: block;
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.scratchpad-shell,
+.writing-answer-block {
+  width: min(100%, 680px);
+}
+
+.scratchpad {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  touch-action: none;
+}
+
+.scratchpad-note {
+  margin: 12px 0 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.writing-meaning {
+  margin: 0 0 16px;
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+
+.writing-feedback {
+  margin: 12px 0 0;
+  color: var(--danger);
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.writing-complete {
+  min-height: 360px;
+  display: grid;
+  place-content: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.writing-complete h2 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.1;
+}
+
+.writing-complete-copy {
+  margin: 0 auto;
+  max-width: 520px;
+  color: var(--muted);
+  line-height: 1.6;
 }
 
 .review-grid {
@@ -629,5 +712,14 @@ h1 {
 
   .pool-selector {
     align-items: flex-start;
+  }
+
+  .action-row {
+    flex-direction: column;
+  }
+
+  .action-row .secondary-button,
+  .action-row .primary-button {
+    width: 100%;
   }
 }

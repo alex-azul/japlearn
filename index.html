@@ -51,7 +51,8 @@
           <h1>Pr&aacute;ctica JLPT N5</h1>
           <p class="intro">
             Elige un tramo consecutivo del vocabulario y &aacute;brelo como test
-            interactivo o como repaso visual en grid.
+            interactivo, como pr&aacute;ctica de escritura o como repaso visual en
+            grid.
           </p>
 
           <div class="range-fields">
@@ -84,6 +85,7 @@
           <label class="field-label" for="mode-select">Modo</label>
           <select id="mode-select" class="mode-select">
             <option value="practice">Pr&aacute;ctica interactiva</option>
+            <option value="writing">Pr&aacute;ctica de escritura</option>
             <option value="review">Repaso en grid</option>
           </select>
 
@@ -205,6 +207,94 @@
 
         <div class="action-row">
           <button id="review-back-button" class="secondary-button" type="button">
+            Volver al inicio
+          </button>
+        </div>
+      </section>
+
+      <section id="writing-screen" class="screen screen--writing hidden">
+        <header class="run-header">
+          <div class="stat-card">
+            <span class="stat-label">Rango activo</span>
+            <strong id="writing-range">0-0</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Tama&ntilde;o de pool</span>
+            <strong id="writing-pool-size">0</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Completadas</span>
+            <strong id="writing-completed-count">0</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Restantes</span>
+            <strong id="writing-remaining-count">0</strong>
+          </div>
+        </header>
+
+        <section class="writing-card">
+          <div id="writing-active-panel" class="writing-panel">
+            <p class="prompt-label">Pr&aacute;ctica de escritura</p>
+            <h2 id="writing-prompt-word" class="prompt-word japanese-display"></h2>
+
+            <div class="scratchpad-shell">
+              <span class="writing-section-label">Trazo libre</span>
+              <canvas
+                id="writing-canvas"
+                class="scratchpad"
+                aria-label="Superficie de escritura libre"
+              ></canvas>
+              <p class="scratchpad-note">
+                Garabato libre para fijar la memoria. No se guarda.
+              </p>
+            </div>
+
+            <div class="writing-answer-block">
+              <span class="writing-section-label">Significados visibles</span>
+              <p id="writing-meaning" class="writing-meaning"></p>
+
+              <form id="writing-answer-form" class="text-answer-form" novalidate>
+                <label class="text-answer-label" for="writing-answer-input">
+                  Reescribe el significado completo
+                </label>
+                <div class="text-answer-row">
+                  <input
+                    id="writing-answer-input"
+                    class="text-answer-input"
+                    type="text"
+                    autocomplete="off"
+                    autocapitalize="off"
+                    spellcheck="false"
+                  />
+                  <button class="primary-button text-answer-button" type="submit">
+                    Siguiente
+                  </button>
+                </div>
+              </form>
+
+              <p id="writing-feedback" class="writing-feedback hidden" aria-live="polite"></p>
+            </div>
+          </div>
+
+          <div id="writing-complete-panel" class="writing-complete hidden">
+            <p class="prompt-label">Pr&aacute;ctica completada</p>
+            <h2>Has terminado el rango seleccionado.</h2>
+            <p class="writing-complete-copy">
+              Puedes reiniciar esta pr&aacute;ctica o volver al inicio para elegir
+              otro tramo.
+            </p>
+          </div>
+        </section>
+
+        <div class="action-row">
+          <button
+            id="writing-restart-button"
+            class="secondary-button"
+            type="button"
+          >
+            Reiniciar pr&aacute;ctica
+          </button>
+          <button id="writing-back-button" class="secondary-button" type="button">
             Volver al inicio
           </button>
         </div>

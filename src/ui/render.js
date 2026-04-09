@@ -1,6 +1,10 @@
 import { getPromptText, getReadingText } from "../domain/answers.js";
 import { formatRange } from "../domain/selection.js";
 import { formatAccuracy } from "../domain/run.js";
+import {
+  getCurrentWritingEntry,
+  getRemainingCount,
+} from "../domain/writing-practice.js";
 
 function getStatsTintStyle(statsEntry) {
   if (statsEntry.stats.appearances === 0) {
@@ -121,7 +125,11 @@ export function renderStartSelection(dom, state) {
   dom.start.poolTotalDisplay.textContent = String(state.total);
   dom.start.rangeDisplay.textContent = "Rango " + formatRange(state.range);
   dom.start.startButton.textContent =
-    state.mode === "review" ? "Abrir repaso" : "Empezar pr\u00e1ctica";
+    state.mode === "review"
+      ? "Abrir repaso"
+      : state.mode === "writing"
+        ? "Abrir pr\u00e1ctica de escritura"
+        : "Empezar pr\u00e1ctica";
 }
 
 export function renderError(dom, message) {
@@ -166,6 +174,34 @@ export function renderReview(dom, state) {
   });
 
   dom.review.grid.appendChild(fragment);
+}
+
+export function renderWritingPractice(dom, state) {
+  var currentEntry = getCurrentWritingEntry(state.session);
+
+  dom.writing.statRange.textContent = formatRange(state.session.range);
+  dom.writing.statPoolSize.textContent = String(state.session.poolSize);
+  dom.writing.statCompleted.textContent = String(state.session.completedCount);
+  dom.writing.statRemaining.textContent = String(getRemainingCount(state.session));
+  dom.writing.feedback.textContent = state.feedbackMessage || "";
+  dom.writing.feedback.classList.toggle("hidden", !state.feedbackMessage);
+
+  if (!currentEntry) {
+    dom.writing.activePanel.classList.add("hidden");
+    dom.writing.completePanel.classList.remove("hidden");
+    dom.writing.answerInput.value = "";
+    return;
+  }
+
+  dom.writing.completePanel.classList.add("hidden");
+  dom.writing.activePanel.classList.remove("hidden");
+  dom.writing.promptWord.textContent = getPromptText(currentEntry);
+  dom.writing.meaning.textContent = currentEntry.meaning;
+  dom.writing.answerInput.value = state.draftAnswer || "";
+
+  if (typeof dom.writing.answerInput.focus === "function") {
+    dom.writing.answerInput.focus();
+  }
 }
 
 export function renderStatsScreen(dom, state) {

@@ -16,6 +16,10 @@ import {
   normalizeRange,
   pickNextWord,
 } from "../domain/selection.js";
+import {
+  createWritingSession,
+  submitWritingAnswer,
+} from "../domain/writing-practice.js";
 import { trimText } from "../shared/text.js";
 import { getDomRefs, showScreen } from "../ui/dom.js";
 import {
@@ -24,8 +28,10 @@ import {
   renderReview,
   renderStatsScreen,
   renderStartSelection,
+  renderWritingPractice,
   writeStartRangeInputs,
 } from "../ui/render.js";
+import { createScratchpad } from "../ui/scratchpad.js";
 import { syncThemeSelection } from "../ui/theme.js";
 
 export function createApp(options = {}) {
@@ -45,8 +51,14 @@ export function createApp(options = {}) {
   var vocabulary = loadVocabulary(rawVocabulary);
   var meaningPool = buildMeaningPool(vocabulary);
   var dom = getDomRefs(doc);
+  var scratchpad = createScratchpad(dom.writing.canvas, {
+    view: doc.defaultView || null,
+  });
   var appState = {
     run: null,
+    writingSession: null,
+    writingDraftAnswer: "",
+    writingFeedbackMessage: "",
     screen: "start",
     selectedTheme: "system",
     selectedRange: {
@@ -67,6 +79,14 @@ export function createApp(options = {}) {
       range: appState.selectedRange,
       mode: appState.selectedMode,
       total: vocabulary.length,
+    });
+  }
+
+  function renderWritingPage() {
+    renderWritingPractice(dom, {
+      session: appState.writingSession,
+      draftAnswer: appState.writingDraftAnswer,
+      feedbackMessage: appState.writingFeedbackMessage,
     });
   }
 
@@ -124,7 +144,11 @@ export function createApp(options = {}) {
 
   function syncModeSelection() {
     var nextMode =
-      dom.start.modeSelect.value === "review" ? "review" : "practice";
+      dom.start.modeSelect.value === "review"
+        ? "review"
+        : dom.start.modeSelect.value === "writing"
+          ? "writing"
+          : "practice";
 
     appState.selectedMode = nextMode;
     renderStart();
@@ -146,13 +170,32 @@ export function createApp(options = {}) {
   }
 
   function startRun(range) {
+    appState.writingSession = null;
+    appState.writingDraftAnswer = "";
+    appState.writingFeedbackMessage = "";
+    scratchpad.clear();
     appState.run = createRunState(range, vocabulary, meaningPool);
     setScreen("practice");
     advanceQuestion();
   }
 
+  function startWriting(range) {
+    appState.run = null;
+    appState.writingSession = createWritingSession(range, vocabulary);
+    appState.writingDraftAnswer = "";
+    appState.writingFeedbackMessage = "";
+    setScreen("writing");
+    renderWritingPage();
+    scratchpad.resize();
+    scratchpad.clear();
+  }
+
   function startReview(range) {
     appState.run = null;
+    appState.writingSession = null;
+    appState.writingDraftAnswer = "";
+    appState.writingFeedbackMessage = "";
+    scratchpad.clear();
     renderReview(dom, {
       entries: getRangeEntries(vocabulary, range),
       range: range,
@@ -163,6 +206,10 @@ export function createApp(options = {}) {
 
   function startStats() {
     appState.run = null;
+    appState.writingSession = null;
+    appState.writingDraftAnswer = "";
+    appState.writingFeedbackMessage = "";
+    scratchpad.clear();
     renderStatsPage();
     setScreen("stats");
   }
@@ -173,6 +220,11 @@ export function createApp(options = {}) {
 
     if (selectedMode === "review") {
       startReview(selectedRange);
+      return;
+    }
+
+    if (selectedMode === "writing") {
+      startWriting(selectedRange);
       return;
     }
 
@@ -225,8 +277,38 @@ export function createApp(options = {}) {
     handleAnswer(answer);
   }
 
+  function handleWritingSubmit(event) {
+    event.preventDefault();
+
+    if (!appState.writingSession || appState.writingSession.isComplete) {
+      return;
+    }
+
+    appState.writingDraftAnswer = dom.writing.answerInput.value;
+
+    if (submitWritingAnswer(appState.writingSession, appState.writingDraftAnswer)) {
+      appState.writingDraftAnswer = "";
+      appState.writingFeedbackMessage = "";
+      renderWritingPage();
+      scratchpad.clear();
+      return;
+    }
+
+    appState.writingFeedbackMessage =
+      "Copia el significado completo tal como aparece.";
+    renderWritingPage();
+  }
+
+  function handleWritingInput() {
+    appState.writingDraftAnswer = dom.writing.answerInput.value;
+  }
+
   function goBackToStart() {
     appState.run = null;
+    appState.writingSession = null;
+    appState.writingDraftAnswer = "";
+    appState.writingFeedbackMessage = "";
+    scratchpad.clear();
     syncRangeSelection(true);
     syncModeSelection();
     setScreen("start");
@@ -274,6 +356,14 @@ export function createApp(options = {}) {
       }
     });
     dom.practice.backButton.addEventListener("click", goBackToStart);
+    dom.writing.answerForm.addEventListener("submit", handleWritingSubmit);
+    dom.writing.answerInput.addEventListener("input", handleWritingInput);
+    dom.writing.restartButton.addEventListener("click", function () {
+      if (appState.writingSession) {
+        startWriting(appState.writingSession.range);
+      }
+    });
+    dom.writing.backButton.addEventListener("click", goBackToStart);
     dom.review.backButton.addEventListener("click", goBackToStart);
     dom.stats.backButton.addEventListener("click", goBackToStart);
     dom.stats.resetButton.addEventListener("click", resetStats);
