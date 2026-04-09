@@ -364,6 +364,9 @@ export function createApp(options = {}) {
     dom.practice.backButton.addEventListener("click", goBackToStart);
     dom.writing.answerForm.addEventListener("submit", handleWritingSubmit);
     dom.writing.answerInput.addEventListener("input", handleWritingInput);
+    dom.writing.clearCanvasButton.addEventListener("click", function () {
+      scratchpad.clear();
+    });
     dom.writing.restartButton.addEventListener("click", function () {
       if (appState.writingSession) {
         startWriting(appState.writingSession.range);

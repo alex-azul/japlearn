@@ -458,6 +458,16 @@ h1 {
   touch-action: none;
 }
 
+.scratchpad-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.scratchpad-clear-button {
+  min-width: 0;
+}
+
 .scratchpad-note {
   margin: 12px 0 0;
   color: var(--muted);

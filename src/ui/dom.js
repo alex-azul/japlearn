@@ -58,6 +58,7 @@ export function getDomRefs(doc = document) {
       completePanel: doc.getElementById("writing-complete-panel"),
       promptWord: doc.getElementById("writing-prompt-word"),
       canvas: doc.getElementById("writing-canvas"),
+      clearCanvasButton: doc.getElementById("writing-clear-canvas-button"),
       meaning: doc.getElementById("writing-meaning"),
       answerForm: doc.getElementById("writing-answer-form"),
       answerInput: doc.getElementById("writing-answer-input"),
