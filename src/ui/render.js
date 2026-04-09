@@ -2,6 +2,45 @@ import { getPromptText, getReadingText } from "../domain/answers.js";
 import { formatRange } from "../domain/selection.js";
 import { formatAccuracy } from "../domain/run.js";
 
+function getStatsTintStyle(statsEntry) {
+  if (statsEntry.stats.appearances === 0) {
+    return "rgba(127, 127, 127, 0.08)";
+  }
+
+  var red = {
+    r: 191,
+    g: 68,
+    b: 76,
+  };
+  var green = {
+    r: 62,
+    g: 155,
+    b: 98,
+  };
+  var mix = statsEntry.accuracy;
+  var redMix = 1 - mix;
+  var r = Math.round(red.r * redMix + green.r * mix);
+  var g = Math.round(red.g * redMix + green.g * mix);
+  var b = Math.round(red.b * redMix + green.b * mix);
+
+  return "rgba(" + r + ", " + g + ", " + b + ", 0.18)";
+}
+
+function renderStatsSummary(dom, summary) {
+  dom.stats.trackedCount.textContent = String(summary.trackedCount);
+  dom.stats.totalAppearances.textContent = String(summary.totalAppearances);
+  dom.stats.totalCorrect.textContent = String(summary.totalCorrect);
+  dom.stats.totalWrong.textContent = String(summary.totalWrong);
+}
+
+function appendStatsPill(doc, parent, label, value) {
+  var pill = doc.createElement("span");
+
+  pill.className = "stats-pill";
+  pill.textContent = label + ": " + value;
+  parent.appendChild(pill);
+}
+
 function renderStats(dom, runState) {
   dom.practice.statRange.textContent = formatRange(runState.range);
   dom.practice.statPoolSize.textContent = String(runState.poolSize);
@@ -127,4 +166,44 @@ export function renderReview(dom, state) {
   });
 
   dom.review.grid.appendChild(fragment);
+}
+
+export function renderStatsScreen(dom, state) {
+  var doc = dom.stats.grid.ownerDocument;
+  var fragment = doc.createDocumentFragment();
+
+  renderStatsSummary(dom, state.summary);
+  dom.stats.grid.textContent = "";
+
+  state.entries.forEach(function (item) {
+    var card = doc.createElement("article");
+    var word = doc.createElement("h2");
+    var reading = doc.createElement("p");
+    var meaning = doc.createElement("p");
+    var statsMeta = doc.createElement("div");
+
+    card.className = "review-item stats-item";
+    card.style.backgroundColor = getStatsTintStyle(item);
+
+    word.className = "review-word japanese-display";
+    reading.className = "review-reading";
+    meaning.className = "review-meaning";
+    statsMeta.className = "stats-meta";
+
+    word.textContent = getPromptText(item.entry);
+    reading.textContent = getReadingText(item.entry);
+    meaning.textContent = item.entry.meaning;
+    appendStatsPill(doc, statsMeta, "Seen", item.stats.appearances);
+    appendStatsPill(doc, statsMeta, "OK", item.stats.correct);
+    appendStatsPill(doc, statsMeta, "Fail", item.stats.wrong);
+    appendStatsPill(doc, statsMeta, "Acc", item.accuracyLabel);
+
+    card.appendChild(word);
+    card.appendChild(reading);
+    card.appendChild(meaning);
+    card.appendChild(statsMeta);
+    fragment.appendChild(card);
+  });
+
+  dom.stats.grid.appendChild(fragment);
 }

@@ -96,9 +96,14 @@
             <p id="range-display" class="range-display">Rango 1-20</p>
           </div>
 
-          <button id="start-button" class="primary-button" type="button">
-            Empezar pr&aacute;ctica
-          </button>
+          <div class="start-actions">
+            <button id="start-button" class="primary-button" type="button">
+              Empezar pr&aacute;ctica
+            </button>
+            <button id="stats-button" class="secondary-button" type="button">
+              Ver stats
+            </button>
+          </div>
         </div>
       </section>
 
@@ -200,6 +205,41 @@
 
         <div class="action-row">
           <button id="review-back-button" class="secondary-button" type="button">
+            Volver al inicio
+          </button>
+        </div>
+      </section>
+
+      <section id="stats-screen" class="screen screen--stats hidden">
+        <header class="run-header">
+          <div class="stat-card">
+            <span class="stat-label">Palabras con historial</span>
+            <strong id="stats-tracked-count">0</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Apariciones globales</span>
+            <strong id="stats-total-appearances">0</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Aciertos globales</span>
+            <strong id="stats-total-correct">0</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Fallos globales</span>
+            <strong id="stats-total-wrong">0</strong>
+          </div>
+        </header>
+
+        <section class="review-card">
+          <p class="prompt-label">Historial global</p>
+          <div id="stats-grid" class="review-grid stats-grid"></div>
+        </section>
+
+        <div class="action-row">
+          <button id="stats-reset-button" class="secondary-button" type="button">
+            Reset stats
+          </button>
+          <button id="stats-back-button" class="secondary-button" type="button">
             Volver al inicio
           </button>
         </div>

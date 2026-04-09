@@ -6,6 +6,7 @@ export function getDomRefs(doc = document) {
       start: doc.getElementById("start-screen"),
       practice: doc.getElementById("practice-screen"),
       review: doc.getElementById("review-screen"),
+      stats: doc.getElementById("stats-screen"),
     },
     errorMessage: doc.getElementById("error-message"),
     themeButtons: {
@@ -21,6 +22,7 @@ export function getDomRefs(doc = document) {
       poolTotalDisplay: doc.getElementById("pool-total-display"),
       rangeDisplay: doc.getElementById("range-display"),
       startButton: doc.getElementById("start-button"),
+      statsButton: doc.getElementById("stats-button"),
     },
     practice: {
       statRange: doc.getElementById("stat-range"),
@@ -45,6 +47,15 @@ export function getDomRefs(doc = document) {
       total: doc.getElementById("review-total"),
       grid: doc.getElementById("review-grid"),
       backButton: doc.getElementById("review-back-button"),
+    },
+    stats: {
+      trackedCount: doc.getElementById("stats-tracked-count"),
+      totalAppearances: doc.getElementById("stats-total-appearances"),
+      totalCorrect: doc.getElementById("stats-total-correct"),
+      totalWrong: doc.getElementById("stats-total-wrong"),
+      grid: doc.getElementById("stats-grid"),
+      resetButton: doc.getElementById("stats-reset-button"),
+      backButton: doc.getElementById("stats-back-button"),
     },
   };
 }

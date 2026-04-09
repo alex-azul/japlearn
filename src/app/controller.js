@@ -1,4 +1,14 @@
+import {
+  clearGlobalStats,
+  loadGlobalStats,
+  saveGlobalStats,
+} from "../data/global-stats-storage.js";
 import { buildMeaningPool, loadVocabulary } from "../data/vocabulary.js";
+import {
+  applyGlobalAnswer,
+  createEmptyGlobalStats,
+  createStatsScreenEntries,
+} from "../domain/global-stats.js";
 import { createRunState, recordAnswer } from "../domain/run.js";
 import {
   createOptions,
@@ -12,6 +22,7 @@ import {
   renderError,
   renderPractice,
   renderReview,
+  renderStatsScreen,
   renderStartSelection,
   writeStartRangeInputs,
 } from "../ui/render.js";
@@ -21,6 +32,16 @@ export function createApp(options = {}) {
   var rawVocabulary = options.rawVocabulary || [];
   var doc = options.document || document;
   var randomFn = options.randomFn || Math.random;
+  var storage =
+    options.storage ||
+    (typeof window !== "undefined" ? window.localStorage : null);
+  var confirmFn =
+    options.confirm ||
+    (typeof window !== "undefined" && typeof window.confirm === "function"
+      ? window.confirm.bind(window)
+      : function () {
+          return false;
+        });
   var vocabulary = loadVocabulary(rawVocabulary);
   var meaningPool = buildMeaningPool(vocabulary);
   var dom = getDomRefs(doc);
@@ -33,6 +54,7 @@ export function createApp(options = {}) {
       end: 1,
     },
     selectedMode: "practice",
+    globalStats: createEmptyGlobalStats(vocabulary),
   };
 
   function setScreen(screenName) {
@@ -45,6 +67,36 @@ export function createApp(options = {}) {
       range: appState.selectedRange,
       mode: appState.selectedMode,
       total: vocabulary.length,
+    });
+  }
+
+  function getStatsSummary(entries) {
+    return entries.reduce(
+      function (summary, item) {
+        if (item.stats.appearances > 0) {
+          summary.trackedCount += 1;
+        }
+
+        summary.totalAppearances += item.stats.appearances;
+        summary.totalCorrect += item.stats.correct;
+        summary.totalWrong += item.stats.wrong;
+        return summary;
+      },
+      {
+        trackedCount: 0,
+        totalAppearances: 0,
+        totalCorrect: 0,
+        totalWrong: 0,
+      }
+    );
+  }
+
+  function renderStatsPage() {
+    var entries = createStatsScreenEntries(vocabulary, appState.globalStats);
+
+    renderStatsScreen(dom, {
+      entries: entries,
+      summary: getStatsSummary(entries),
     });
   }
 
@@ -109,6 +161,12 @@ export function createApp(options = {}) {
     setScreen("review");
   }
 
+  function startStats() {
+    appState.run = null;
+    renderStatsPage();
+    setScreen("stats");
+  }
+
   function startSelectedMode() {
     var selectedRange = syncRangeSelection(true);
     var selectedMode = syncModeSelection();
@@ -122,11 +180,19 @@ export function createApp(options = {}) {
   }
 
   function handleAnswer(answerValue) {
+    var isCorrect;
+
     if (!appState.run) {
       return;
     }
 
-    recordAnswer(appState.run, answerValue);
+    isCorrect = recordAnswer(appState.run, answerValue);
+    applyGlobalAnswer(
+      appState.globalStats,
+      appState.run.currentWord.id,
+      isCorrect
+    );
+    saveGlobalStats(storage, appState.globalStats);
     advanceQuestion();
   }
 
@@ -166,6 +232,17 @@ export function createApp(options = {}) {
     setScreen("start");
   }
 
+  function resetStats() {
+    if (!confirmFn("Esto borrara todos los stats globales. Continuar?")) {
+      return;
+    }
+
+    appState.globalStats = createEmptyGlobalStats(vocabulary);
+    clearGlobalStats(storage);
+    saveGlobalStats(storage, appState.globalStats);
+    renderStatsPage();
+  }
+
   function bindEvents() {
     Object.keys(dom.themeButtons).forEach(function (theme) {
       dom.themeButtons[theme].addEventListener("click", function () {
@@ -187,6 +264,7 @@ export function createApp(options = {}) {
     });
     dom.start.modeSelect.addEventListener("change", syncModeSelection);
     dom.start.startButton.addEventListener("click", startSelectedMode);
+    dom.start.statsButton.addEventListener("click", startStats);
 
     dom.practice.optionsList.addEventListener("click", handleOptionClick);
     dom.practice.textAnswerForm.addEventListener("submit", handleTextSubmit);
@@ -197,6 +275,8 @@ export function createApp(options = {}) {
     });
     dom.practice.backButton.addEventListener("click", goBackToStart);
     dom.review.backButton.addEventListener("click", goBackToStart);
+    dom.stats.backButton.addEventListener("click", goBackToStart);
+    dom.stats.resetButton.addEventListener("click", resetStats);
   }
 
   function bootstrap() {
@@ -213,6 +293,7 @@ export function createApp(options = {}) {
       start: 1,
       end: Math.min(20, vocabulary.length),
     };
+    appState.globalStats = loadGlobalStats(storage, vocabulary);
 
     dom.start.rangeStartInput.max = String(vocabulary.length);
     dom.start.rangeEndInput.max = String(vocabulary.length);
