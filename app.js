@@ -63,10 +63,44 @@
         correct: 0,
         wrong: 0,
         winRate: 0,
+        responseMode: "choice",
       });
     });
 
     return statsById;
+  }
+
+  function collapseWhitespace(value) {
+    return trimText(value).replace(/\s+/g, " ");
+  }
+
+  function stripLeadingArticle(value) {
+    return value.replace(/^(a|an|the)\s+/i, "");
+  }
+
+  function normalizeTextAnswer(value) {
+    return stripLeadingArticle(collapseWhitespace(value).toLowerCase());
+  }
+
+  function getAcceptedTextAnswers(meaning) {
+    return meaning
+      .split(",")
+      .map(function (fragment) {
+        return normalizeTextAnswer(fragment);
+      })
+      .filter(function (fragment) {
+        return fragment.length > 0;
+      });
+  }
+
+  function isValidTextAnswer(answer, meaning) {
+    var normalizedAnswer = normalizeTextAnswer(answer);
+
+    if (!normalizedAnswer) {
+      return false;
+    }
+
+    return getAcceptedTextAnswers(meaning).includes(normalizedAnswer);
   }
 
   function clampInteger(value, fallback, minValue, maxValue) {
@@ -119,6 +153,7 @@
       lastFailure: null,
       lastWordId: null,
       currentWord: null,
+      currentResponseMode: "choice",
       currentOptions: [],
     };
   }
@@ -204,6 +239,9 @@
     startScreen: document.getElementById("start-screen"),
     practiceScreen: document.getElementById("practice-screen"),
     reviewScreen: document.getElementById("review-screen"),
+    themeSystemButton: document.getElementById("theme-system-button"),
+    themeLightButton: document.getElementById("theme-light-button"),
+    themeDarkButton: document.getElementById("theme-dark-button"),
     rangeStartInput: document.getElementById("range-start-input"),
     rangeEndInput: document.getElementById("range-end-input"),
     poolSizeDisplay: document.getElementById("pool-size-display"),
@@ -217,6 +255,8 @@
     statAccuracy: document.getElementById("stat-accuracy"),
     promptWord: document.getElementById("prompt-word"),
     optionsList: document.getElementById("options-list"),
+    textAnswerForm: document.getElementById("text-answer-form"),
+    textAnswerInput: document.getElementById("text-answer-input"),
     failureEmpty: document.getElementById("failure-empty"),
     failureDetails: document.getElementById("failure-details"),
     failureWord: document.getElementById("failure-word"),
@@ -233,6 +273,7 @@
 
   var appState = {
     run: null,
+    selectedTheme: "system",
     selectedRange: {
       start: 1,
       end: 20,
@@ -250,6 +291,33 @@
   function showError(message) {
     dom.errorMessage.textContent = message;
     showScreen("error");
+  }
+
+  function syncThemeSelection(theme) {
+    var nextTheme =
+      theme === "light" || theme === "dark" ? theme : "system";
+    var themeButtons = [
+      { button: dom.themeSystemButton, theme: "system" },
+      { button: dom.themeLightButton, theme: "light" },
+      { button: dom.themeDarkButton, theme: "dark" },
+    ];
+
+    appState.selectedTheme = nextTheme;
+
+    if (nextTheme === "system") {
+      document.documentElement.removeAttribute("data-theme");
+    } else {
+      document.documentElement.setAttribute("data-theme", nextTheme);
+    }
+
+    themeButtons.forEach(function (item) {
+      var isActive = item.theme === nextTheme;
+
+      item.button.classList.toggle("is-active", isActive);
+      item.button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    });
+
+    return nextTheme;
   }
 
   function updateRangeSelectorDisplay(range) {
@@ -316,6 +384,9 @@
   }
 
   function renderOptions(runState) {
+    dom.textAnswerForm.classList.add("hidden");
+    dom.textAnswerInput.value = "";
+    dom.optionsList.classList.remove("hidden");
     dom.optionsList.textContent = "";
 
     runState.currentOptions.forEach(function (meaning) {
@@ -330,11 +401,28 @@
     });
   }
 
+  function renderTextAnswer() {
+    dom.optionsList.textContent = "";
+    dom.optionsList.classList.add("hidden");
+    dom.textAnswerForm.classList.remove("hidden");
+    dom.textAnswerInput.value = "";
+    dom.textAnswerInput.focus();
+  }
+
+  function renderAnswerInput(runState) {
+    if (runState.currentResponseMode === "text") {
+      renderTextAnswer();
+      return;
+    }
+
+    renderOptions(runState);
+  }
+
   function renderPractice(runState) {
     dom.promptWord.textContent = getPromptText(runState.currentWord);
     renderStats(runState);
     renderLastFailure(runState);
-    renderOptions(runState);
+    renderAnswerInput(runState);
   }
 
   function renderReview(range) {
@@ -374,10 +462,13 @@
     var runState = appState.run;
 
     runState.currentWord = pickNextWord(runState);
-    runState.currentOptions = createOptions(
-      runState.currentWord.meaning,
-      runState.meaningPool
-    );
+    runState.currentResponseMode = runState.statsById.get(
+      runState.currentWord.id
+    ).responseMode;
+    runState.currentOptions =
+      runState.currentResponseMode === "choice"
+        ? createOptions(runState.currentWord.meaning, runState.meaningPool)
+        : [];
 
     renderPractice(runState);
   }
@@ -410,15 +501,20 @@
     var runState = appState.run;
     var currentWord = runState.currentWord;
     var stats = runState.statsById.get(currentWord.id);
-    var isCorrect = selectedMeaning === currentWord.meaning;
+    var isTextMode = runState.currentResponseMode === "text";
+    var isCorrect = isTextMode
+      ? isValidTextAnswer(selectedMeaning, currentWord.meaning)
+      : selectedMeaning === currentWord.meaning;
 
     stats.appearances += 1;
 
     if (isCorrect) {
       stats.correct += 1;
       runState.correctCount += 1;
+      stats.responseMode = "text";
     } else {
       stats.wrong += 1;
+      stats.responseMode = "choice";
       runState.lastFailure = {
         kanji: currentWord.kanji,
         furigana: getReadingText(currentWord),
@@ -435,6 +531,16 @@
   }
 
   function bindEvents() {
+    dom.themeSystemButton.addEventListener("click", function () {
+      syncThemeSelection("system");
+    });
+    dom.themeLightButton.addEventListener("click", function () {
+      syncThemeSelection("light");
+    });
+    dom.themeDarkButton.addEventListener("click", function () {
+      syncThemeSelection("dark");
+    });
+
     dom.rangeStartInput.addEventListener("input", function () {
       syncRangeSelection(false);
     });
@@ -450,6 +556,24 @@
     dom.modeSelect.addEventListener("change", syncModeSelection);
 
     dom.startButton.addEventListener("click", startSelectedMode);
+    dom.textAnswerForm.addEventListener("submit", function (event) {
+      var answer;
+
+      event.preventDefault();
+
+      if (!appState.run || appState.run.currentResponseMode !== "text") {
+        return;
+      }
+
+      answer = trimText(dom.textAnswerInput.value);
+
+      if (!answer) {
+        dom.textAnswerInput.focus();
+        return;
+      }
+
+      handleAnswer(answer);
+    });
 
     dom.restartButton.addEventListener("click", function () {
       if (appState.run) {
@@ -486,6 +610,7 @@
       start: 1,
       end: Math.min(20, vocabulary.length),
     };
+    syncThemeSelection(appState.selectedTheme);
     dom.rangeStartInput.value = String(appState.selectedRange.start);
     dom.rangeEndInput.value = String(appState.selectedRange.end);
     syncRangeSelection(true);

@@ -8,6 +8,38 @@
   </head>
   <body>
     <main class="app-shell">
+      <div class="app-toolbar">
+        <div class="theme-switcher" role="group" aria-label="Tema de color">
+          <span class="theme-switcher-label">Tema</span>
+          <div class="theme-toggle">
+            <button
+              id="theme-system-button"
+              class="theme-button is-active"
+              type="button"
+              aria-pressed="true"
+            >
+              Sistema
+            </button>
+            <button
+              id="theme-light-button"
+              class="theme-button"
+              type="button"
+              aria-pressed="false"
+            >
+              Claro
+            </button>
+            <button
+              id="theme-dark-button"
+              class="theme-button"
+              type="button"
+              aria-pressed="false"
+            >
+              Oscuro
+            </button>
+          </div>
+        </div>
+      </div>
+
       <section id="error-screen" class="screen screen--error hidden" aria-live="polite">
         <h1>Error de carga</h1>
         <p id="error-message">No se pudieron cargar los datos.</p>
@@ -95,6 +127,24 @@
             <p class="prompt-label">Palabra japonesa</p>
             <h2 id="prompt-word" class="prompt-word japanese-display"></h2>
             <div id="options-list" class="options-list"></div>
+            <form id="text-answer-form" class="text-answer-form hidden" novalidate>
+              <label class="text-answer-label" for="text-answer-input">
+                Escribe un significado
+              </label>
+              <div class="text-answer-row">
+                <input
+                  id="text-answer-input"
+                  class="text-answer-input"
+                  type="text"
+                  autocomplete="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                />
+                <button class="primary-button text-answer-button" type="submit">
+                  Comprobar
+                </button>
+              </div>
+            </form>
           </section>
 
           <aside class="failure-card" aria-live="polite">
