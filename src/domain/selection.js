@@ -99,13 +99,29 @@ export function pickNextWord(runState, randomFn = Math.random) {
   return pickByWeight(weightedItems, randomFn);
 }
 
-export function createOptions(correctMeaning, meaningPool, randomFn = Math.random) {
-  var distractors = shuffleInPlace(
+export function createOptions(
+  correctMeaning,
+  meaningPool,
+  optionCount = 4,
+  randomFn = Math.random
+) {
+  var resolvedOptionCount = optionCount;
+  var resolvedRandomFn = randomFn;
+  var distractorCount;
+  var distractors;
+
+  if (typeof optionCount === "function") {
+    resolvedOptionCount = 4;
+    resolvedRandomFn = optionCount;
+  }
+
+  distractorCount = Math.max(resolvedOptionCount - 1, 0);
+  distractors = shuffleInPlace(
     meaningPool.filter(function (meaning) {
       return meaning !== correctMeaning;
     }),
-    randomFn
-  ).slice(0, 3);
+    resolvedRandomFn
+  ).slice(0, distractorCount);
 
-  return shuffleInPlace([correctMeaning].concat(distractors), randomFn);
+  return shuffleInPlace([correctMeaning].concat(distractors), resolvedRandomFn);
 }

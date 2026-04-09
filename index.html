@@ -51,8 +51,8 @@
           <h1>Pr&aacute;ctica JLPT N5</h1>
           <p class="intro">
             Elige un tramo consecutivo del vocabulario y &aacute;brelo como test
-            interactivo, como pr&aacute;ctica de escritura o como repaso visual en
-            grid.
+            interactivo, como pr&aacute;ctica intensa, como pr&aacute;ctica de
+            escritura o como repaso visual en grid.
           </p>
 
           <div class="range-fields">
@@ -85,6 +85,7 @@
           <label class="field-label" for="mode-select">Modo</label>
           <select id="mode-select" class="mode-select">
             <option value="practice">Pr&aacute;ctica interactiva</option>
+            <option value="intense">Pr&aacute;ctica intensa</option>
             <option value="writing">Pr&aacute;ctica de escritura</option>
             <option value="review">Repaso en grid</option>
           </select>
@@ -179,6 +180,58 @@
             Reiniciar run
           </button>
           <button id="back-button" class="secondary-button" type="button">
+            Volver al inicio
+          </button>
+        </div>
+      </section>
+
+      <section id="intense-screen" class="screen screen--intense hidden">
+        <header class="run-header">
+          <div class="stat-card">
+            <span class="stat-label">Rango activo</span>
+            <strong id="intense-range">0-0</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Tama&ntilde;o de pool</span>
+            <strong id="intense-pool-size">0</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Preguntas respondidas</span>
+            <strong id="intense-answered-count">0</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Combo actual</span>
+            <strong id="intense-combo-count">0</strong>
+          </div>
+        </header>
+
+        <section class="intense-card">
+          <div id="intense-stage" class="intense-stage">
+            <div id="intense-pause-overlay" class="intense-pause-overlay hidden">
+              <div class="intense-pause-card">
+                <p id="intense-pause-title" class="intense-pause-title">Fallo</p>
+                <p class="writing-section-label">Respuesta correcta</p>
+                <p id="intense-pause-meaning" class="intense-pause-meaning"></p>
+                <button id="intense-resume-button" class="primary-button" type="button">
+                  Reanudar
+                </button>
+              </div>
+            </div>
+
+            <p class="prompt-label">Pr&aacute;ctica intensa</p>
+            <h2 id="intense-prompt-word" class="prompt-word japanese-display"></h2>
+            <div class="intense-timer-track" aria-hidden="true">
+              <div id="intense-timer-bar" class="intense-timer-bar"></div>
+            </div>
+            <div id="intense-options-list" class="options-list intense-options-list"></div>
+          </div>
+        </section>
+
+        <div class="action-row">
+          <button id="intense-restart-button" class="secondary-button" type="button">
+            Reiniciar run
+          </button>
+          <button id="intense-back-button" class="secondary-button" type="button">
             Volver al inicio
           </button>
         </div>
@@ -363,6 +416,7 @@
 
           document.getElementById("start-screen").classList.add("hidden");
           document.getElementById("practice-screen").classList.add("hidden");
+          document.getElementById("intense-screen").classList.add("hidden");
           document.getElementById("review-screen").classList.add("hidden");
           document.getElementById("writing-screen").classList.add("hidden");
           document.getElementById("stats-screen").classList.add("hidden");

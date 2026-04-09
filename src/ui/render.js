@@ -55,6 +55,39 @@ function renderStats(dom, runState) {
   );
 }
 
+function renderIntenseOptions(dom, options, isDisabled) {
+  var doc = dom.intense.optionsList.ownerDocument;
+  var fragment = doc.createDocumentFragment();
+
+  dom.intense.optionsList.textContent = "";
+
+  options.forEach(function (meaning, index) {
+    var button = doc.createElement("button");
+    var shortcut = doc.createElement("span");
+    var label = doc.createElement("span");
+
+    button.type = "button";
+    button.className = "option-button intense-option-button";
+    button.dataset.answer = meaning;
+    button.disabled = isDisabled;
+
+    shortcut.className = "intense-option-shortcut";
+    shortcut.textContent = String(index + 1);
+    label.className = "intense-option-label";
+    label.textContent = meaning;
+
+    button.appendChild(shortcut);
+    button.appendChild(label);
+    fragment.appendChild(button);
+  });
+
+  dom.intense.optionsList.appendChild(fragment);
+}
+
+function getIntensePauseTitle(reason) {
+  return reason === "timeout" ? "Tiempo agotado" : "Fallo";
+}
+
 function renderLastFailure(dom, lastFailure) {
   var hasFailure = Boolean(lastFailure);
 
@@ -127,6 +160,8 @@ export function renderStartSelection(dom, state) {
   dom.start.startButton.textContent =
     state.mode === "review"
       ? "Abrir repaso"
+      : state.mode === "intense"
+        ? "Abrir pr\u00e1ctica intensa"
       : state.mode === "writing"
         ? "Abrir pr\u00e1ctica de escritura"
         : "Empezar pr\u00e1ctica";
@@ -141,6 +176,34 @@ export function renderPractice(dom, runState) {
   renderStats(dom, runState);
   renderLastFailure(dom, runState.lastFailure);
   renderAnswerInput(dom, runState);
+}
+
+export function renderIntenseTimer(dom, progress) {
+  var safeProgress = Math.max(0, Math.min(1, progress));
+
+  dom.intense.timerBar.style.transform = "scaleX(" + safeProgress + ")";
+  dom.intense.timerBar.classList.toggle("is-urgent", safeProgress <= 0.33);
+}
+
+export function renderIntensePractice(dom, state) {
+  var session = state.session;
+  var progress = session.timeLimitMs
+    ? session.timeRemainingMs / session.timeLimitMs
+    : 0;
+  var isDisabled = session.isPaused || session.isTransitioning;
+
+  dom.intense.statRange.textContent = formatRange(session.run.range);
+  dom.intense.statPoolSize.textContent = String(session.run.poolSize);
+  dom.intense.statAnswered.textContent = String(session.run.answeredCount);
+  dom.intense.statCombo.textContent = String(session.comboCount);
+  dom.intense.promptWord.textContent = getPromptText(session.run.currentWord);
+  dom.intense.stage.classList.toggle("is-hit", session.isTransitioning);
+  dom.intense.promptWord.classList.toggle("is-hit", session.isTransitioning);
+  dom.intense.pauseOverlay.classList.toggle("hidden", !session.isPaused);
+  dom.intense.pauseTitle.textContent = getIntensePauseTitle(session.pauseReason);
+  dom.intense.pauseMeaning.textContent = session.pauseCorrectMeaning || "";
+  renderIntenseOptions(dom, session.run.currentOptions, isDisabled);
+  renderIntenseTimer(dom, progress);
 }
 
 export function renderReview(dom, state) {

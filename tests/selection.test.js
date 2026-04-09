@@ -59,6 +59,21 @@ test("createOptions always returns one correct answer plus three distractors", f
   assert.equal(new Set(options).size, 4);
 });
 
+test("createOptions supports a three-choice mode", function () {
+  var options = createOptions(
+    "correct",
+    ["correct", "one", "two", "three", "four"],
+    3,
+    function () {
+      return 0;
+    }
+  );
+
+  assert.equal(options.length, 3);
+  assert.equal(options.includes("correct"), true);
+  assert.equal(new Set(options).size, 3);
+});
+
 test("pickNextWord prioritizes unseen entries", function () {
   var entries = [
     createEntry(1, "one"),

@@ -48,13 +48,53 @@ export function formatAccuracy(correctCount, answeredCount) {
   return ((correctCount / answeredCount) * 100).toFixed(1) + "%";
 }
 
-export function recordAnswer(runState, answerValue) {
+function updateFailure(runState, currentWord) {
+  runState.lastFailure = {
+    kanji: currentWord.kanji,
+    furigana: getReadingText(currentWord),
+    prompt: getPromptText(currentWord),
+    meaning: currentWord.meaning,
+  };
+}
+
+function finalizeAnswer(runState, currentWord, stats, isCorrect) {
+  stats.winRate = stats.correct / stats.appearances;
+  runState.answeredCount += 1;
+  runState.lastWordId = currentWord.id;
+  return isCorrect;
+}
+
+export function recordChoiceAnswer(
+  runState,
+  answerValue,
+  options = {
+    promoteOnCorrect: true,
+  }
+) {
   var currentWord = runState.currentWord;
   var stats = runState.statsById.get(currentWord.id);
-  var isTextMode = runState.currentResponseMode === "text";
-  var isCorrect = isTextMode
-    ? isValidTextAnswer(answerValue, currentWord.meaning)
-    : answerValue === currentWord.meaning;
+  var isCorrect = answerValue === currentWord.meaning;
+  var promoteOnCorrect = options.promoteOnCorrect !== false;
+
+  stats.appearances += 1;
+
+  if (isCorrect) {
+    stats.correct += 1;
+    runState.correctCount += 1;
+    stats.responseMode = promoteOnCorrect ? "text" : "choice";
+  } else {
+    stats.wrong += 1;
+    stats.responseMode = "choice";
+    updateFailure(runState, currentWord);
+  }
+
+  return finalizeAnswer(runState, currentWord, stats, isCorrect);
+}
+
+function recordTextModeAnswer(runState, answerValue) {
+  var currentWord = runState.currentWord;
+  var stats = runState.statsById.get(currentWord.id);
+  var isCorrect = isValidTextAnswer(answerValue, currentWord.meaning);
 
   stats.appearances += 1;
 
@@ -65,17 +105,18 @@ export function recordAnswer(runState, answerValue) {
   } else {
     stats.wrong += 1;
     stats.responseMode = "choice";
-    runState.lastFailure = {
-      kanji: currentWord.kanji,
-      furigana: getReadingText(currentWord),
-      prompt: getPromptText(currentWord),
-      meaning: currentWord.meaning,
-    };
+    updateFailure(runState, currentWord);
   }
 
-  stats.winRate = stats.correct / stats.appearances;
-  runState.answeredCount += 1;
-  runState.lastWordId = currentWord.id;
+  return finalizeAnswer(runState, currentWord, stats, isCorrect);
+}
 
-  return isCorrect;
+export function recordAnswer(runState, answerValue) {
+  if (runState.currentResponseMode === "text") {
+    return recordTextModeAnswer(runState, answerValue);
+  }
+
+  return recordChoiceAnswer(runState, answerValue, {
+    promoteOnCorrect: true,
+  });
 }

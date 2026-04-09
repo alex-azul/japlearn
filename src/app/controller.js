@@ -9,6 +9,14 @@ import {
   createEmptyGlobalStats,
   createStatsScreenEntries,
 } from "../domain/global-stats.js";
+import {
+  advanceIntenseQuestion,
+  createIntenseSession,
+  INTENSE_HIT_TRANSITION_MS,
+  pauseIntenseSession,
+  startIntenseTransition,
+  submitIntenseAnswer,
+} from "../domain/intense-practice.js";
 import { createRunState, recordAnswer } from "../domain/run.js";
 import {
   createOptions,
@@ -24,6 +32,8 @@ import { trimText } from "../shared/text.js";
 import { getDomRefs, showScreen } from "../ui/dom.js";
 import {
   renderError,
+  renderIntensePractice,
+  renderIntenseTimer,
   renderPractice,
   renderReview,
   renderStatsScreen,
@@ -37,6 +47,7 @@ import { syncThemeSelection } from "../ui/theme.js";
 export function createApp(options = {}) {
   var rawVocabulary = options.rawVocabulary || [];
   var doc = options.document || document;
+  var view = doc.defaultView || (typeof window !== "undefined" ? window : null);
   var randomFn = options.randomFn || Math.random;
   var storage =
     options.storage ||
@@ -52,9 +63,9 @@ export function createApp(options = {}) {
   var meaningPool = buildMeaningPool(vocabulary);
   var dom = getDomRefs(doc);
   var scratchpad = createScratchpad(dom.writing.canvas, {
-    view: doc.defaultView || null,
+    view: view,
     getStrokeStyle: function (canvas) {
-      var computedStyle = (doc.defaultView || window).getComputedStyle(canvas);
+      var computedStyle = view.getComputedStyle(canvas);
       var cssValue = computedStyle.getPropertyValue("--scratchpad-ink").trim();
 
       return cssValue || "#111111";
@@ -62,6 +73,10 @@ export function createApp(options = {}) {
   });
   var appState = {
     run: null,
+    intenseSession: null,
+    intenseTimerFrameId: null,
+    intenseTransitionTimeoutId: null,
+    intenseDeadlineAt: 0,
     writingSession: null,
     writingDraftAnswer: "",
     writingFeedbackMessage: "",
@@ -93,6 +108,16 @@ export function createApp(options = {}) {
       session: appState.writingSession,
       draftAnswer: appState.writingDraftAnswer,
       feedbackMessage: appState.writingFeedbackMessage,
+    });
+  }
+
+  function renderIntensePage() {
+    if (!appState.intenseSession) {
+      return;
+    }
+
+    renderIntensePractice(dom, {
+      session: appState.intenseSession,
     });
   }
 
@@ -130,6 +155,49 @@ export function createApp(options = {}) {
     appState.selectedTheme = syncThemeSelection(dom, theme);
   }
 
+  function resetWritingState() {
+    appState.writingSession = null;
+    appState.writingDraftAnswer = "";
+    appState.writingFeedbackMessage = "";
+    scratchpad.clear();
+  }
+
+  function stopIntenseTimer() {
+    if (
+      appState.intenseTimerFrameId !== null &&
+      view &&
+      typeof view.cancelAnimationFrame === "function"
+    ) {
+      view.cancelAnimationFrame(appState.intenseTimerFrameId);
+    }
+
+    appState.intenseTimerFrameId = null;
+    appState.intenseDeadlineAt = 0;
+  }
+
+  function stopIntenseTransition() {
+    if (
+      appState.intenseTransitionTimeoutId !== null &&
+      view &&
+      typeof view.clearTimeout === "function"
+    ) {
+      view.clearTimeout(appState.intenseTransitionTimeoutId);
+    }
+
+    appState.intenseTransitionTimeoutId = null;
+  }
+
+  function clearIntenseState() {
+    stopIntenseTimer();
+    stopIntenseTransition();
+    appState.intenseSession = null;
+  }
+
+  function recordGlobalAnswerResult(wordId, isCorrect) {
+    applyGlobalAnswer(appState.globalStats, wordId, isCorrect);
+    saveGlobalStats(storage, appState.globalStats);
+  }
+
   function syncRangeSelection(writeInputs = false) {
     var nextRange = normalizeRange(
       dom.start.rangeStartInput.value,
@@ -152,6 +220,8 @@ export function createApp(options = {}) {
     var nextMode =
       dom.start.modeSelect.value === "review"
         ? "review"
+        : dom.start.modeSelect.value === "intense"
+          ? "intense"
         : dom.start.modeSelect.value === "writing"
           ? "writing"
           : "practice";
@@ -176,17 +246,86 @@ export function createApp(options = {}) {
   }
 
   function startRun(range) {
-    appState.writingSession = null;
-    appState.writingDraftAnswer = "";
-    appState.writingFeedbackMessage = "";
-    scratchpad.clear();
+    clearIntenseState();
+    resetWritingState();
     appState.run = createRunState(range, vocabulary, meaningPool);
     setScreen("practice");
     advanceQuestion();
   }
 
+  function updateIntenseTimer(now) {
+    var session = appState.intenseSession;
+
+    if (
+      !session ||
+      appState.screen !== "intense" ||
+      session.isPaused ||
+      session.isTransitioning
+    ) {
+      appState.intenseTimerFrameId = null;
+      return;
+    }
+
+    session.timeRemainingMs = Math.max(appState.intenseDeadlineAt - now, 0);
+    renderIntenseTimer(dom, session.timeRemainingMs / session.timeLimitMs);
+
+    if (session.timeRemainingMs <= 0) {
+      appState.intenseTimerFrameId = null;
+      handleIntenseAnswer("", "timeout");
+      return;
+    }
+
+    appState.intenseTimerFrameId = view.requestAnimationFrame(updateIntenseTimer);
+  }
+
+  function startIntenseTimer() {
+    if (
+      !appState.intenseSession ||
+      !view ||
+      typeof view.requestAnimationFrame !== "function"
+    ) {
+      return;
+    }
+
+    stopIntenseTimer();
+    appState.intenseDeadlineAt =
+      view.performance.now() + appState.intenseSession.timeLimitMs;
+    renderIntenseTimer(dom, 1);
+    appState.intenseTimerFrameId = view.requestAnimationFrame(updateIntenseTimer);
+  }
+
+  function beginIntenseTransition() {
+    stopIntenseTimer();
+    stopIntenseTransition();
+    startIntenseTransition(appState.intenseSession);
+    renderIntensePage();
+    appState.intenseTransitionTimeoutId = view.setTimeout(function () {
+      appState.intenseTransitionTimeoutId = null;
+
+      if (!appState.intenseSession || appState.screen !== "intense") {
+        return;
+      }
+
+      advanceIntenseQuestion(appState.intenseSession, randomFn);
+      renderIntensePage();
+      startIntenseTimer();
+    }, INTENSE_HIT_TRANSITION_MS);
+  }
+
+  function startIntense(range) {
+    appState.run = null;
+    resetWritingState();
+    clearIntenseState();
+    appState.intenseSession = createIntenseSession(range, vocabulary, meaningPool);
+    advanceIntenseQuestion(appState.intenseSession, randomFn);
+    setScreen("intense");
+    renderIntensePage();
+    startIntenseTimer();
+  }
+
   function startWriting(range) {
     appState.run = null;
+    clearIntenseState();
     appState.writingSession = createWritingSession(range, vocabulary);
     appState.writingDraftAnswer = "";
     appState.writingFeedbackMessage = "";
@@ -198,10 +337,8 @@ export function createApp(options = {}) {
 
   function startReview(range) {
     appState.run = null;
-    appState.writingSession = null;
-    appState.writingDraftAnswer = "";
-    appState.writingFeedbackMessage = "";
-    scratchpad.clear();
+    clearIntenseState();
+    resetWritingState();
     renderReview(dom, {
       entries: getRangeEntries(vocabulary, range),
       range: range,
@@ -212,10 +349,8 @@ export function createApp(options = {}) {
 
   function startStats() {
     appState.run = null;
-    appState.writingSession = null;
-    appState.writingDraftAnswer = "";
-    appState.writingFeedbackMessage = "";
-    scratchpad.clear();
+    clearIntenseState();
+    resetWritingState();
     renderStatsPage();
     setScreen("stats");
   }
@@ -226,6 +361,11 @@ export function createApp(options = {}) {
 
     if (selectedMode === "review") {
       startReview(selectedRange);
+      return;
+    }
+
+    if (selectedMode === "intense") {
+      startIntense(selectedRange);
       return;
     }
 
@@ -245,13 +385,34 @@ export function createApp(options = {}) {
     }
 
     isCorrect = recordAnswer(appState.run, answerValue);
-    applyGlobalAnswer(
-      appState.globalStats,
-      appState.run.currentWord.id,
-      isCorrect
-    );
-    saveGlobalStats(storage, appState.globalStats);
+    recordGlobalAnswerResult(appState.run.currentWord.id, isCorrect);
     advanceQuestion();
+  }
+
+  function handleIntenseAnswer(answerValue, failureReason = "wrong") {
+    var currentWordId;
+    var isCorrect;
+
+    if (
+      !appState.intenseSession ||
+      appState.intenseSession.isPaused ||
+      appState.intenseSession.isTransitioning
+    ) {
+      return;
+    }
+
+    stopIntenseTimer();
+    currentWordId = appState.intenseSession.run.currentWord.id;
+    isCorrect = submitIntenseAnswer(appState.intenseSession, answerValue);
+    recordGlobalAnswerResult(currentWordId, isCorrect);
+
+    if (isCorrect) {
+      beginIntenseTransition();
+      return;
+    }
+
+    pauseIntenseSession(appState.intenseSession, failureReason);
+    renderIntensePage();
   }
 
   function handleOptionClick(event) {
@@ -283,6 +444,58 @@ export function createApp(options = {}) {
     handleAnswer(answer);
   }
 
+  function handleIntenseOptionClick(event) {
+    var optionButton = event.target.closest(".intense-option-button[data-answer]");
+
+    if (!optionButton || !dom.intense.optionsList.contains(optionButton)) {
+      return;
+    }
+
+    handleIntenseAnswer(optionButton.dataset.answer || "");
+  }
+
+  function handleIntenseResume() {
+    if (!appState.intenseSession || !appState.intenseSession.isPaused) {
+      return;
+    }
+
+    advanceIntenseQuestion(appState.intenseSession, randomFn);
+    renderIntensePage();
+    startIntenseTimer();
+  }
+
+  function handleGlobalKeyDown(event) {
+    var optionIndex = {
+      Digit1: 0,
+      Numpad1: 0,
+      Digit2: 1,
+      Numpad2: 1,
+      Digit3: 2,
+      Numpad3: 2,
+    }[event.code];
+    var answerValue;
+
+    if (
+      optionIndex === undefined ||
+      event.repeat ||
+      appState.screen !== "intense" ||
+      !appState.intenseSession ||
+      appState.intenseSession.isPaused ||
+      appState.intenseSession.isTransitioning
+    ) {
+      return;
+    }
+
+    answerValue = appState.intenseSession.run.currentOptions[optionIndex];
+
+    if (!answerValue) {
+      return;
+    }
+
+    event.preventDefault();
+    handleIntenseAnswer(answerValue);
+  }
+
   function handleWritingSubmit(event) {
     event.preventDefault();
 
@@ -311,10 +524,8 @@ export function createApp(options = {}) {
 
   function goBackToStart() {
     appState.run = null;
-    appState.writingSession = null;
-    appState.writingDraftAnswer = "";
-    appState.writingFeedbackMessage = "";
-    scratchpad.clear();
+    clearIntenseState();
+    resetWritingState();
     syncRangeSelection(true);
     syncModeSelection();
     setScreen("start");
@@ -362,6 +573,14 @@ export function createApp(options = {}) {
       }
     });
     dom.practice.backButton.addEventListener("click", goBackToStart);
+    dom.intense.optionsList.addEventListener("click", handleIntenseOptionClick);
+    dom.intense.resumeButton.addEventListener("click", handleIntenseResume);
+    dom.intense.restartButton.addEventListener("click", function () {
+      if (appState.intenseSession) {
+        startIntense(appState.intenseSession.run.range);
+      }
+    });
+    dom.intense.backButton.addEventListener("click", goBackToStart);
     dom.writing.answerForm.addEventListener("submit", handleWritingSubmit);
     dom.writing.answerInput.addEventListener("input", handleWritingInput);
     dom.writing.clearCanvasButton.addEventListener("click", function () {
@@ -376,6 +595,7 @@ export function createApp(options = {}) {
     dom.review.backButton.addEventListener("click", goBackToStart);
     dom.stats.backButton.addEventListener("click", goBackToStart);
     dom.stats.resetButton.addEventListener("click", resetStats);
+    doc.addEventListener("keydown", handleGlobalKeyDown);
   }
 
   function bootstrap() {

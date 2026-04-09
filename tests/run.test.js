@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createRunState, recordAnswer } from "../src/domain/run.js";
+import {
+  createRunState,
+  recordAnswer,
+  recordChoiceAnswer,
+} from "../src/domain/run.js";
 
 var vocabulary = [
   {
@@ -93,4 +97,19 @@ test("recordAnswer keeps failed multiple-choice words in choice mode", function 
   assert.equal(recordAnswer(runState, "blue"), false);
   assert.equal(runState.statsById.get(4).responseMode, "choice");
   assert.equal(runState.answeredCount, 1);
+});
+
+test("recordChoiceAnswer can keep successful words in choice mode", function () {
+  var runState = createRun();
+
+  runState.currentWord = vocabulary[0];
+  runState.currentResponseMode = "choice";
+
+  assert.equal(
+    recordChoiceAnswer(runState, "blue", {
+      promoteOnCorrect: false,
+    }),
+    true
+  );
+  assert.equal(runState.statsById.get(1).responseMode, "choice");
 });

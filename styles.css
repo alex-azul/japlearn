@@ -168,6 +168,7 @@ select {
 
 .start-card,
 .practice-card,
+.intense-card,
 .writing-card,
 .review-card,
 .failure-card,
@@ -357,6 +358,10 @@ h1 {
   padding: 36px;
 }
 
+.intense-card {
+  padding: 32px;
+}
+
 .review-card {
   padding: 30px;
 }
@@ -425,6 +430,109 @@ h1 {
 
 .text-answer-button {
   flex-shrink: 0;
+}
+
+.intense-stage {
+  position: relative;
+  min-height: 520px;
+  display: grid;
+  align-content: start;
+}
+
+.intense-stage.is-hit {
+  animation: intense-stage-shake 190ms linear;
+}
+
+.intense-stage .prompt-word.is-hit {
+  animation: intense-word-burst 190ms cubic-bezier(0.12, 0.7, 0, 1) forwards;
+}
+
+.intense-timer-track {
+  width: min(100%, 680px);
+  height: 12px;
+  margin: -8px 0 28px;
+  background: var(--panel-strong);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.intense-timer-bar {
+  width: 100%;
+  height: 100%;
+  transform-origin: left center;
+  background: linear-gradient(90deg, #f7b253 0%, var(--accent) 55%, #a42b36 100%);
+  transition: background-color 120ms ease;
+}
+
+.intense-timer-bar.is-urgent {
+  background: linear-gradient(90deg, #ffb36b 0%, #d24b4b 70%, #8f1621 100%);
+}
+
+.intense-options-list {
+  width: min(100%, 680px);
+}
+
+.intense-option-button {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.intense-option-button:disabled {
+  cursor: default;
+  transform: none;
+  opacity: 0.74;
+}
+
+.intense-option-shortcut {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+  color: var(--text);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.intense-option-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.intense-pause-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  backdrop-filter: blur(4px);
+}
+
+.intense-pause-card {
+  width: min(100%, 420px);
+  padding: 24px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.intense-pause-title {
+  margin: 0 0 14px;
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-weight: 700;
+}
+
+.intense-pause-meaning {
+  margin: 0 0 22px;
+  font-size: 1.08rem;
+  line-height: 1.6;
 }
 
 .writing-panel {
@@ -670,6 +778,44 @@ h1 {
   margin-top: 20px;
 }
 
+@keyframes intense-stage-shake {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  20% {
+    transform: translate3d(-10px, 0, 0);
+  }
+
+  40% {
+    transform: translate3d(8px, 0, 0);
+  }
+
+  60% {
+    transform: translate3d(-6px, 0, 0);
+  }
+
+  80% {
+    transform: translate3d(3px, 0, 0);
+  }
+
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes intense-word-burst {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.48);
+  }
+}
+
 .screen--error {
   max-width: 520px;
   margin: 120px auto 0;
@@ -710,6 +856,13 @@ h1 {
     width: 100%;
   }
 
+  .intense-timer-track,
+  .intense-options-list,
+  .scratchpad-shell,
+  .writing-answer-block {
+    width: 100%;
+  }
+
   .start-actions {
     flex-direction: column;
   }
@@ -734,5 +887,19 @@ h1 {
   .action-row .secondary-button,
   .action-row .primary-button {
     width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intense-stage.is-hit,
+  .intense-stage .prompt-word.is-hit {
+    animation-duration: 90ms;
+  }
+
+  .primary-button,
+  .secondary-button,
+  .theme-button,
+  .option-button {
+    transition: none;
   }
 }
