@@ -443,6 +443,7 @@ h1 {
   min-height: 520px;
   display: grid;
   align-content: start;
+  overflow: hidden;
 }
 
 .intense-stage.is-hit {
@@ -451,6 +452,75 @@ h1 {
 
 .intense-stage .prompt-word.is-hit {
   animation: intense-word-burst 190ms cubic-bezier(0.12, 0.7, 0, 1) forwards;
+}
+
+.intense-feedback-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.intense-combo-burst {
+  position: absolute;
+  top: 31%;
+  left: 50%;
+  z-index: 3;
+  opacity: 0;
+  pointer-events: none;
+  color: var(--accent);
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+  font-size: clamp(2.1rem, 7vw, 4.8rem);
+  font-weight: 800;
+  line-height: 1;
+  text-shadow: 0 8px 24px rgba(180, 79, 31, 0.22);
+  transform: translate3d(-50%, -50%, 0) scale(0.72);
+}
+
+.intense-combo-burst.is-active {
+  animation: intense-combo-burst 520ms cubic-bezier(0.12, 0.76, 0, 1) forwards;
+}
+
+.intense-combo-burst.is-milestone {
+  color: #f0a83d;
+  text-shadow: 0 10px 30px rgba(240, 168, 61, 0.36);
+}
+
+.intense-particle {
+  position: absolute;
+  width: var(--particle-size);
+  aspect-ratio: 1;
+  border-radius: 999px;
+  opacity: 0;
+  background: radial-gradient(
+    circle,
+    #fff7dc 0%,
+    #f7b253 42%,
+    var(--accent) 100%
+  );
+  box-shadow: 0 0 18px rgba(247, 178, 83, 0.35);
+  transform: translate3d(-50%, -50%, 0) scale(0.7);
+  animation: intense-particle-pop 620ms cubic-bezier(0.12, 0.74, 0.2, 1)
+    var(--particle-delay) forwards;
+  will-change: transform, opacity;
+}
+
+.intense-particle.is-milestone {
+  background: radial-gradient(circle, #fffce7 0%, #f0c24d 48%, #da7c47 100%);
+  box-shadow: 0 0 22px rgba(240, 194, 77, 0.52);
+}
+
+#intense-combo-count {
+  display: inline-block;
+  transform-origin: center;
+}
+
+#intense-combo-count.is-pulsing {
+  animation: intense-stat-combo-pulse 340ms cubic-bezier(0.12, 0.76, 0, 1);
+}
+
+#intense-combo-count.is-milestone {
+  color: var(--accent);
 }
 
 .intense-timer-track {
@@ -511,7 +581,7 @@ h1 {
 .intense-pause-overlay {
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: 4;
   display: grid;
   place-items: center;
   padding: 20px;
@@ -539,6 +609,16 @@ h1 {
   margin: 0 0 22px;
   font-size: 1.08rem;
   line-height: 1.6;
+}
+
+.intense-sound-button {
+  min-width: 86px;
+  font-weight: 700;
+}
+
+.intense-sound-button.is-muted {
+  color: var(--muted);
+  background: var(--surface);
 }
 
 .writing-panel {
@@ -845,6 +925,63 @@ h1 {
   }
 }
 
+@keyframes intense-combo-burst {
+  0% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scale(0.72);
+  }
+
+  18% {
+    opacity: 1;
+    transform: translate3d(-50%, -56%, 0) scale(1.12);
+  }
+
+  58% {
+    opacity: 1;
+    transform: translate3d(-50%, -62%, 0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(-50%, -76%, 0) scale(0.9);
+  }
+}
+
+@keyframes intense-particle-pop {
+  0% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scale(0.55);
+  }
+
+  14% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(
+        calc(-50% + var(--particle-x)),
+        calc(-50% + var(--particle-y)),
+        0
+      )
+      scale(0.22);
+  }
+}
+
+@keyframes intense-stat-combo-pulse {
+  0% {
+    transform: scale(1);
+  }
+
+  42% {
+    transform: scale(1.28);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
 .screen--error {
   max-width: 520px;
   margin: 120px auto 0;
@@ -923,6 +1060,15 @@ h1 {
   .intense-stage.is-hit,
   .intense-stage .prompt-word.is-hit {
     animation-duration: 90ms;
+  }
+
+  .intense-particle {
+    display: none;
+  }
+
+  .intense-combo-burst.is-active,
+  #intense-combo-count.is-pulsing {
+    animation-duration: 140ms;
   }
 
   .primary-button,

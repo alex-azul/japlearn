@@ -30,6 +30,7 @@ import {
 } from "../domain/writing-practice.js";
 import { trimText } from "../shared/text.js";
 import { getDomRefs, showScreen } from "../ui/dom.js";
+import { createIntenseFeedback } from "../ui/intense-feedback.js";
 import {
   renderError,
   renderIntensePractice,
@@ -90,6 +91,10 @@ export function createApp(options = {}) {
     selectedMode: "practice",
     globalStats: createEmptyGlobalStats(vocabulary),
   };
+  var intenseFeedback = createIntenseFeedback(dom.intense, {
+    view: view,
+    storage: storage,
+  });
 
   function setScreen(screenName) {
     appState.screen = screenName;
@@ -195,6 +200,7 @@ export function createApp(options = {}) {
   function clearIntenseState() {
     stopIntenseTimer();
     stopIntenseTransition();
+    intenseFeedback.clear();
     appState.intenseSession = null;
   }
 
@@ -419,9 +425,11 @@ export function createApp(options = {}) {
 
     if (isCorrect) {
       beginIntenseTransition();
+      intenseFeedback.triggerCorrect(appState.intenseSession.comboCount);
       return;
     }
 
+    intenseFeedback.clear();
     pauseIntenseSession(appState.intenseSession, failureReason);
     renderIntensePage();
   }
@@ -640,6 +648,9 @@ export function createApp(options = {}) {
     dom.practice.backButton.addEventListener("click", goBackToStart);
     dom.intense.optionsList.addEventListener("click", handleIntenseOptionClick);
     dom.intense.resumeButton.addEventListener("click", handleIntenseResume);
+    dom.intense.soundButton.addEventListener("click", function () {
+      intenseFeedback.toggleSound();
+    });
     dom.intense.restartButton.addEventListener("click", function () {
       if (appState.intenseSession) {
         startIntense(appState.intenseSession.run.range);
