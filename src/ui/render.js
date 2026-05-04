@@ -209,6 +209,7 @@ export function renderIntensePractice(dom, state) {
 export function renderReview(dom, state) {
   var doc = dom.review.grid.ownerDocument;
   var fragment = doc.createDocumentFragment();
+  var markedWordIds = state.markedWordIds || new Set();
 
   dom.review.range.textContent = formatRange(state.range);
   dom.review.count.textContent = String(state.entries.length);
@@ -220,8 +221,18 @@ export function renderReview(dom, state) {
     var word = doc.createElement("h2");
     var reading = doc.createElement("p");
     var meaning = doc.createElement("p");
+    var wordId = String(entry.id);
 
     card.className = "review-item";
+    card.dataset.wordId = wordId;
+    card.tabIndex = 0;
+    card.setAttribute("role", "button");
+    card.setAttribute(
+      "aria-pressed",
+      markedWordIds.has(wordId) ? "true" : "false"
+    );
+    card.classList.toggle("is-marked", markedWordIds.has(wordId));
+
     word.className = "review-word japanese-display";
     reading.className = "review-reading";
     meaning.className = "review-meaning";

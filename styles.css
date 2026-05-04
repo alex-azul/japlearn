@@ -16,6 +16,8 @@
   --accent-strong: #8f3611;
   --accent-text: #fffaf3;
   --option-hover: #f4ead2;
+  --review-marked-bg: #dff1df;
+  --review-marked-border: #6da56f;
   --shadow: 0 18px 40px rgba(31, 27, 22, 0.08);
   --jp-font:
     "Hiragino Kaku Gothic ProN", "Yu Gothic", "YuGothic", "Meiryo",
@@ -44,6 +46,8 @@
   --accent-strong: #e89566;
   --accent-text: #1a120d;
   --option-hover: #30261d;
+  --review-marked-bg: #1e3c29;
+  --review-marked-border: #67b06f;
   --shadow: 0 18px 40px rgba(0, 0, 0, 0.38);
 }
 
@@ -66,6 +70,8 @@
     --accent-strong: #e89566;
     --accent-text: #1a120d;
     --option-hover: #30261d;
+    --review-marked-bg: #1e3c29;
+    --review-marked-border: #67b06f;
     --shadow: 0 18px 40px rgba(0, 0, 0, 0.38);
   }
 }
@@ -636,6 +642,29 @@ h1 {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 18px;
+}
+
+.review-item[data-word-id] {
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    transform 120ms ease;
+}
+
+.review-item[data-word-id]:hover {
+  transform: translateY(-1px);
+}
+
+.review-item[data-word-id]:focus-visible {
+  outline: 3px solid
+    color-mix(in srgb, var(--review-marked-border) 55%, transparent);
+  outline-offset: 3px;
+}
+
+.review-item.is-marked {
+  background-color: var(--review-marked-bg);
+  border-color: var(--review-marked-border);
 }
 
 .review-word {

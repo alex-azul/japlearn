@@ -80,6 +80,7 @@ export function createApp(options = {}) {
     writingSession: null,
     writingDraftAnswer: "",
     writingFeedbackMessage: "",
+    reviewMarkedWordIds: new Set(),
     screen: "start",
     selectedTheme: "system",
     selectedRange: {
@@ -160,6 +161,10 @@ export function createApp(options = {}) {
     appState.writingDraftAnswer = "";
     appState.writingFeedbackMessage = "";
     scratchpad.clear();
+  }
+
+  function resetReviewState() {
+    appState.reviewMarkedWordIds = new Set();
   }
 
   function stopIntenseTimer() {
@@ -248,6 +253,7 @@ export function createApp(options = {}) {
   function startRun(range) {
     clearIntenseState();
     resetWritingState();
+    resetReviewState();
     appState.run = createRunState(range, vocabulary, meaningPool);
     setScreen("practice");
     advanceQuestion();
@@ -315,6 +321,7 @@ export function createApp(options = {}) {
   function startIntense(range) {
     appState.run = null;
     resetWritingState();
+    resetReviewState();
     clearIntenseState();
     appState.intenseSession = createIntenseSession(range, vocabulary, meaningPool);
     advanceIntenseQuestion(appState.intenseSession, randomFn);
@@ -326,6 +333,7 @@ export function createApp(options = {}) {
   function startWriting(range) {
     appState.run = null;
     clearIntenseState();
+    resetReviewState();
     appState.writingSession = createWritingSession(range, vocabulary);
     appState.writingDraftAnswer = "";
     appState.writingFeedbackMessage = "";
@@ -339,8 +347,10 @@ export function createApp(options = {}) {
     appState.run = null;
     clearIntenseState();
     resetWritingState();
+    resetReviewState();
     renderReview(dom, {
       entries: getRangeEntries(vocabulary, range),
+      markedWordIds: appState.reviewMarkedWordIds,
       range: range,
       total: vocabulary.length,
     });
@@ -351,6 +361,7 @@ export function createApp(options = {}) {
     appState.run = null;
     clearIntenseState();
     resetWritingState();
+    resetReviewState();
     renderStatsPage();
     setScreen("stats");
   }
@@ -522,10 +533,64 @@ export function createApp(options = {}) {
     appState.writingDraftAnswer = dom.writing.answerInput.value;
   }
 
+  function toggleReviewMark(card) {
+    var wordId = card.dataset.wordId;
+    var isMarked;
+
+    if (!wordId) {
+      return;
+    }
+
+    if (appState.reviewMarkedWordIds.has(wordId)) {
+      appState.reviewMarkedWordIds.delete(wordId);
+      isMarked = false;
+    } else {
+      appState.reviewMarkedWordIds.add(wordId);
+      isMarked = true;
+    }
+
+    card.classList.toggle("is-marked", isMarked);
+    card.setAttribute("aria-pressed", isMarked ? "true" : "false");
+  }
+
+  function handleReviewGridClick(event) {
+    var card =
+      event.target &&
+      typeof event.target.closest === "function" &&
+      event.target.closest(".review-item[data-word-id]");
+
+    if (!card || !dom.review.grid.contains(card)) {
+      return;
+    }
+
+    toggleReviewMark(card);
+  }
+
+  function handleReviewGridKeyDown(event) {
+    var card;
+
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    card =
+      event.target &&
+      typeof event.target.closest === "function" &&
+      event.target.closest(".review-item[data-word-id]");
+
+    if (!card || !dom.review.grid.contains(card)) {
+      return;
+    }
+
+    event.preventDefault();
+    toggleReviewMark(card);
+  }
+
   function goBackToStart() {
     appState.run = null;
     clearIntenseState();
     resetWritingState();
+    resetReviewState();
     syncRangeSelection(true);
     syncModeSelection();
     setScreen("start");
@@ -592,6 +657,8 @@ export function createApp(options = {}) {
       }
     });
     dom.writing.backButton.addEventListener("click", goBackToStart);
+    dom.review.grid.addEventListener("click", handleReviewGridClick);
+    dom.review.grid.addEventListener("keydown", handleReviewGridKeyDown);
     dom.review.backButton.addEventListener("click", goBackToStart);
     dom.stats.backButton.addEventListener("click", goBackToStart);
     dom.stats.resetButton.addEventListener("click", resetStats);
