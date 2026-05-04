@@ -476,11 +476,6 @@ h1 {
   will-change: transform, opacity;
 }
 
-.intense-particle.is-milestone {
-  background: radial-gradient(circle, #fffce7 0%, #f0c24d 48%, #da7c47 100%);
-  box-shadow: 0 0 22px rgba(240, 194, 77, 0.52);
-}
-
 .intense-timer-track {
   width: min(100%, 680px);
   height: 12px;

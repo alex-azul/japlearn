@@ -18,13 +18,11 @@ function getComboCount(value) {
 
 export function getIntenseFeedbackProfile(comboCount) {
   var combo = getComboCount(comboCount);
-  var isMilestone = combo > 0 && combo % 5 === 0;
-  var pitchHz = 520 + combo * 38 + (isMilestone ? 80 : 0);
-  var particleCount = 8 + combo * 2 + (isMilestone ? 8 : 0);
+  var pitchHz = 540 + combo * 34;
+  var particleCount = 8 + combo * 2;
 
   return {
     comboCount: combo,
-    isMilestone: isMilestone,
     particleCount: clampNumber(
       particleCount,
       8,
@@ -32,7 +30,7 @@ export function getIntenseFeedbackProfile(comboCount) {
     ),
     pitchHz: Math.round(clampNumber(pitchHz, 520, INTENSE_FEEDBACK_MAX_PITCH_HZ)),
     volume: clampNumber(0.055 + combo * 0.006, 0.055, 0.16),
-    durationMs: isMilestone ? 170 : 115,
+    durationMs: 125,
   };
 }
 
@@ -162,9 +160,7 @@ export function createIntenseFeedback(dom, options = {}) {
       var dx = Math.cos(angleRad) * distance;
       var dy = Math.sin(angleRad) * distance;
 
-      particle.className = profile.isMilestone
-        ? "intense-particle is-milestone"
-        : "intense-particle";
+      particle.className = "intense-particle";
       particle.style.setProperty("--particle-x", dx.toFixed(2) + "px");
       particle.style.setProperty("--particle-y", dy.toFixed(2) + "px");
       particle.style.setProperty("--particle-size", size.toFixed(2) + "px");
@@ -192,7 +188,9 @@ export function createIntenseFeedback(dom, options = {}) {
     var startAt;
     var endAt;
     var oscillator;
+    var overtoneOscillator;
     var gain;
+    var overtoneGain;
     var resumeResult;
 
     if (!soundEnabled) {
@@ -221,21 +219,42 @@ export function createIntenseFeedback(dom, options = {}) {
       startAt = context.currentTime;
       endAt = startAt + profile.durationMs / 1000;
       oscillator = context.createOscillator();
+      overtoneOscillator = context.createOscillator();
       gain = context.createGain();
+      overtoneGain = context.createGain();
 
-      oscillator.type = profile.isMilestone ? "triangle" : "sine";
-      oscillator.frequency.setValueAtTime(profile.pitchHz * 0.84, startAt);
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(profile.pitchHz * 0.92, startAt);
       oscillator.frequency.exponentialRampToValueAtTime(
-        profile.pitchHz * 1.18,
+        profile.pitchHz * 1.12,
         endAt
       );
+      overtoneOscillator.type = "triangle";
+      overtoneOscillator.frequency.setValueAtTime(
+        profile.pitchHz * 2.71,
+        startAt
+      );
+      overtoneOscillator.frequency.exponentialRampToValueAtTime(
+        profile.pitchHz * 2.88,
+        startAt + 0.055
+      );
       gain.gain.setValueAtTime(0.0001, startAt);
-      gain.gain.exponentialRampToValueAtTime(profile.volume, startAt + 0.012);
+      gain.gain.exponentialRampToValueAtTime(profile.volume, startAt + 0.008);
       gain.gain.exponentialRampToValueAtTime(0.0001, endAt);
+      overtoneGain.gain.setValueAtTime(0.0001, startAt);
+      overtoneGain.gain.exponentialRampToValueAtTime(
+        profile.volume * 0.42,
+        startAt + 0.004
+      );
+      overtoneGain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.07);
       oscillator.connect(gain);
+      overtoneOscillator.connect(overtoneGain);
       gain.connect(context.destination);
+      overtoneGain.connect(context.destination);
       oscillator.start(startAt);
+      overtoneOscillator.start(startAt);
       oscillator.stop(endAt + 0.02);
+      overtoneOscillator.stop(startAt + 0.09);
     } catch (error) {
       return;
     }

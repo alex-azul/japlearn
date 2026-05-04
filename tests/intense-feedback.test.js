@@ -12,15 +12,20 @@ import {
 
 test("getIntenseFeedbackProfile scales acierto feedback with combo", function () {
   var firstHit = getIntenseFeedbackProfile(1);
+  var fourthHit = getIntenseFeedbackProfile(4);
   var fifthHit = getIntenseFeedbackProfile(5);
+  var sixthHit = getIntenseFeedbackProfile(6);
 
   assert.equal(firstHit.comboCount, 1);
-  assert.equal(firstHit.isMilestone, false);
   assert.equal(fifthHit.comboCount, 5);
-  assert.equal(fifthHit.isMilestone, true);
   assert.equal(fifthHit.particleCount > firstHit.particleCount, true);
   assert.equal(fifthHit.pitchHz > firstHit.pitchHz, true);
-  assert.equal(fifthHit.durationMs > firstHit.durationMs, true);
+  assert.equal(fifthHit.durationMs, firstHit.durationMs);
+  assert.equal(
+    sixthHit.pitchHz - fifthHit.pitchHz,
+    fifthHit.pitchHz - fourthHit.pitchHz
+  );
+  assert.equal("isMilestone" in fifthHit, false);
 });
 
 test("getIntenseFeedbackProfile clamps invalid and extreme combos", function () {
