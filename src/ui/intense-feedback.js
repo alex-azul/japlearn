@@ -75,21 +75,6 @@ function getAudioContext(view) {
   }
 }
 
-function pulseElement(element, className, extraClassName) {
-  if (!element) {
-    return;
-  }
-
-  element.classList.remove(className, "is-milestone");
-
-  void element.offsetWidth;
-  element.classList.add(className);
-
-  if (extraClassName) {
-    element.classList.add(extraClassName);
-  }
-}
-
 export function createIntenseFeedback(dom, options = {}) {
   var view =
     options.view || (typeof window !== "undefined" ? window : undefined);
@@ -150,15 +135,6 @@ export function createIntenseFeedback(dom, options = {}) {
 
     if (dom.feedbackLayer) {
       dom.feedbackLayer.textContent = "";
-    }
-
-    if (dom.comboBurst) {
-      dom.comboBurst.classList.remove("is-active", "is-milestone");
-      dom.comboBurst.textContent = "";
-    }
-
-    if (dom.statCombo) {
-      dom.statCombo.classList.remove("is-pulsing", "is-milestone");
     }
   }
 
@@ -268,20 +244,6 @@ export function createIntenseFeedback(dom, options = {}) {
   function triggerCorrect(comboCount) {
     var profile = getIntenseFeedbackProfile(comboCount);
 
-    if (dom.comboBurst) {
-      dom.comboBurst.textContent = "x" + profile.comboCount;
-      pulseElement(
-        dom.comboBurst,
-        "is-active",
-        profile.isMilestone ? "is-milestone" : ""
-      );
-    }
-
-    pulseElement(
-      dom.statCombo,
-      "is-pulsing",
-      profile.isMilestone ? "is-milestone" : ""
-    );
     spawnParticles(profile);
     playTing(profile);
   }

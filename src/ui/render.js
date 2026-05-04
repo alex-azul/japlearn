@@ -197,7 +197,6 @@ export function renderIntensePractice(dom, state) {
   dom.intense.statAnswered.textContent = String(session.run.answeredCount);
   dom.intense.statCombo.textContent = String(session.comboCount);
   dom.intense.promptWord.textContent = getPromptText(session.run.currentWord);
-  dom.intense.stage.classList.toggle("is-hit", session.isTransitioning);
   dom.intense.promptWord.classList.toggle("is-hit", session.isTransitioning);
   dom.intense.pauseOverlay.classList.toggle("hidden", !session.isPaused);
   dom.intense.pauseTitle.textContent = getIntensePauseTitle(session.pauseReason);
