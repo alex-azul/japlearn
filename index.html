@@ -86,6 +86,7 @@
           <select id="mode-select" class="mode-select">
             <option value="practice">Pr&aacute;ctica interactiva</option>
             <option value="intense">Pr&aacute;ctica intensa</option>
+            <option value="intense-hard">Pr&aacute;ctica intensa hard</option>
             <option value="writing">Pr&aacute;ctica de escritura</option>
             <option value="review">Repaso en grid</option>
           </select>
@@ -230,12 +231,36 @@
               </div>
             </div>
 
-            <p class="prompt-label">Pr&aacute;ctica intensa</p>
+            <p id="intense-prompt-label" class="prompt-label">
+              Pr&aacute;ctica intensa
+            </p>
             <h2 id="intense-prompt-word" class="prompt-word japanese-display"></h2>
             <div class="intense-timer-track" aria-hidden="true">
               <div id="intense-timer-bar" class="intense-timer-bar"></div>
             </div>
             <div id="intense-options-list" class="options-list intense-options-list"></div>
+            <form
+              id="intense-text-answer-form"
+              class="text-answer-form intense-text-answer-form hidden"
+              novalidate
+            >
+              <label class="text-answer-label" for="intense-text-answer-input">
+                Escribe un significado
+              </label>
+              <div class="text-answer-row">
+                <input
+                  id="intense-text-answer-input"
+                  class="text-answer-input"
+                  type="text"
+                  autocomplete="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                />
+                <button class="primary-button text-answer-button" type="submit">
+                  Comprobar
+                </button>
+              </div>
+            </form>
           </div>
         </section>
 
@@ -446,7 +471,19 @@
 
         <section class="review-card">
           <div class="screen-toolbar">
-            <p class="prompt-label">Ponderaci&oacute;n modo intenso</p>
+            <p id="intense-weights-title" class="prompt-label">
+              Ponderaci&oacute;n modo intenso
+            </p>
+            <label
+              class="field-label screen-toolbar-field"
+              for="intense-weights-mode-select"
+            >
+              Historial
+              <select id="intense-weights-mode-select" class="mode-select">
+                <option value="normal">Intenso</option>
+                <option value="hard">Intenso hard</option>
+              </select>
+            </label>
             <label
               class="field-label screen-toolbar-field"
               for="intense-weights-sort-select"

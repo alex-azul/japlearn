@@ -1,4 +1,5 @@
-import { recordChoiceAnswer, createRunState } from "./run.js";
+import { getPromptText } from "./answers.js";
+import { createRunState, recordChoiceAnswer, recordTextAnswer } from "./run.js";
 import { createOptions, pickNextWord } from "./selection.js";
 import { getIntenseWeightMultiplier } from "./intense-weights.js";
 
@@ -6,15 +7,53 @@ export var INTENSE_OPTION_COUNT = 3;
 export var INTENSE_TIME_LIMIT_MS = 5000;
 export var INTENSE_HIT_TRANSITION_MS = 190;
 
+function pushUnique(items, value) {
+  if (!items.includes(value)) {
+    items.push(value);
+  }
+}
+
+export function createMeaningsByPrompt(vocabulary) {
+  var meaningsByPrompt = {};
+
+  vocabulary.forEach(function (entry) {
+    var prompt = getPromptText(entry);
+
+    if (!meaningsByPrompt[prompt]) {
+      meaningsByPrompt[prompt] = [];
+    }
+
+    pushUnique(meaningsByPrompt[prompt], entry.meaning);
+  });
+
+  return meaningsByPrompt;
+}
+
+function getAcceptedMeaningsForWord(session, word) {
+  var prompt = getPromptText(word);
+  var meanings = session.meaningsByPrompt[prompt];
+
+  return meanings && meanings.length > 0 ? meanings : [word.meaning];
+}
+
+function formatAcceptedMeanings(meanings) {
+  return meanings.join(" / ");
+}
+
 export function createIntenseSession(
   range,
   vocabulary,
   meaningPool,
-  intenseWeightsById = {}
+  intenseWeightsById = {},
+  options = {}
 ) {
   return {
     run: createRunState(range, vocabulary, meaningPool),
     intenseWeightsById: intenseWeightsById,
+    answerMode: options.answerMode === "text" ? "text" : "choice",
+    meaningsByPrompt:
+      options.meaningsByPrompt || createMeaningsByPrompt(vocabulary),
+    currentAcceptedMeanings: [],
     comboCount: 0,
     isPaused: false,
     pauseReason: "",
@@ -36,13 +75,17 @@ export function advanceIntenseQuestion(session, randomFn = Math.random) {
   });
 
   session.run.currentWord = nextWord;
-  session.run.currentResponseMode = "choice";
-  session.run.currentOptions = createOptions(
-    nextWord.meaning,
-    session.run.meaningPool,
-    INTENSE_OPTION_COUNT,
-    randomFn
-  );
+  session.run.currentResponseMode = session.answerMode;
+  session.currentAcceptedMeanings = getAcceptedMeaningsForWord(session, nextWord);
+  session.run.currentOptions =
+    session.answerMode === "choice"
+      ? createOptions(
+          nextWord.meaning,
+          session.run.meaningPool,
+          INTENSE_OPTION_COUNT,
+          randomFn
+        )
+      : [];
   session.isPaused = false;
   session.pauseReason = "";
   session.pauseCorrectMeaning = "";
@@ -52,12 +95,26 @@ export function advanceIntenseQuestion(session, randomFn = Math.random) {
 }
 
 export function submitIntenseAnswer(session, answerValue) {
-  var isCorrect = recordChoiceAnswer(session.run, answerValue, {
-    promoteOnCorrect: false,
-  });
+  var isCorrect =
+    session.answerMode === "text"
+      ? recordTextAnswer(
+          session.run,
+          answerValue,
+          session.currentAcceptedMeanings,
+          {
+            responseModeOnCorrect: "text",
+            responseModeOnWrong: "text",
+          }
+        )
+      : recordChoiceAnswer(session.run, answerValue, {
+          promoteOnCorrect: false,
+        });
 
   session.comboCount = isCorrect ? session.comboCount + 1 : 0;
-  session.pauseCorrectMeaning = session.run.currentWord.meaning;
+  session.pauseCorrectMeaning =
+    session.answerMode === "text"
+      ? formatAcceptedMeanings(session.currentAcceptedMeanings)
+      : session.run.currentWord.meaning;
   return isCorrect;
 }
 
@@ -66,7 +123,9 @@ export function pauseIntenseSession(session, reason) {
   session.isTransitioning = false;
   session.pauseReason = reason;
   session.pauseCorrectMeaning = session.run.currentWord
-    ? session.run.currentWord.meaning
+    ? session.answerMode === "text"
+      ? formatAcceptedMeanings(session.currentAcceptedMeanings)
+      : session.run.currentWord.meaning
     : "";
 
   if (reason === "timeout") {

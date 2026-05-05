@@ -524,6 +524,10 @@ h1 {
   width: min(100%, 680px);
 }
 
+.intense-text-answer-form {
+  width: min(100%, 680px);
+}
+
 .intense-option-button {
   display: flex;
   align-items: center;
@@ -941,6 +945,7 @@ h1 {
 
   .intense-timer-track,
   .intense-options-list,
+  .intense-text-answer-form,
   .scratchpad-shell,
   .writing-answer-block {
     width: 100%;

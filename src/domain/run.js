@@ -1,4 +1,8 @@
-import { getPromptText, getReadingText, isValidTextAnswer } from "./answers.js";
+import {
+  getPromptText,
+  getReadingText,
+  isValidTextAnswerForMeanings,
+} from "./answers.js";
 import { getRangeEntries } from "./selection.js";
 
 function createStatsMap(entries) {
@@ -91,24 +95,37 @@ export function recordChoiceAnswer(
   return finalizeAnswer(runState, currentWord, stats, isCorrect);
 }
 
-function recordTextModeAnswer(runState, answerValue) {
+export function recordTextAnswer(
+  runState,
+  answerValue,
+  acceptedMeanings,
+  options = {}
+) {
   var currentWord = runState.currentWord;
   var stats = runState.statsById.get(currentWord.id);
-  var isCorrect = isValidTextAnswer(answerValue, currentWord.meaning);
+  var meanings =
+    Array.isArray(acceptedMeanings) && acceptedMeanings.length > 0
+      ? acceptedMeanings
+      : [currentWord.meaning];
+  var isCorrect = isValidTextAnswerForMeanings(answerValue, meanings);
 
   stats.appearances += 1;
 
   if (isCorrect) {
     stats.correct += 1;
     runState.correctCount += 1;
-    stats.responseMode = "text";
+    stats.responseMode = options.responseModeOnCorrect || "text";
   } else {
     stats.wrong += 1;
-    stats.responseMode = "choice";
+    stats.responseMode = options.responseModeOnWrong || "choice";
     updateFailure(runState, currentWord);
   }
 
   return finalizeAnswer(runState, currentWord, stats, isCorrect);
+}
+
+function recordTextModeAnswer(runState, answerValue) {
+  return recordTextAnswer(runState, answerValue, [runState.currentWord.meaning]);
 }
 
 export function recordAnswer(runState, answerValue) {

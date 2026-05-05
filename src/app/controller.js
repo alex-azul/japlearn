@@ -5,8 +5,11 @@ import {
 } from "../data/global-stats-storage.js";
 import {
   clearIntenseWeights,
+  clearIntenseWeightsWithKey,
   loadIntenseWeights,
+  loadIntenseWeightsWithKey,
   saveIntenseWeights,
+  saveIntenseWeightsWithKey,
 } from "../data/intense-weights-storage.js";
 import { buildMeaningPool, loadVocabulary } from "../data/vocabulary.js";
 import {
@@ -18,10 +21,12 @@ import {
   applyIntenseWeightAnswer,
   createEmptyIntenseWeights,
   createIntenseWeightEntries,
+  INTENSE_HARD_WEIGHT_STORAGE_KEY,
   wasIntenseAnswerBeforeHalf,
 } from "../domain/intense-weights.js";
 import {
   advanceIntenseQuestion,
+  createMeaningsByPrompt,
   createIntenseSession,
   INTENSE_HIT_TRANSITION_MS,
   pauseIntenseSession,
@@ -74,6 +79,7 @@ export function createApp(options = {}) {
         });
   var vocabulary = loadVocabulary(rawVocabulary);
   var meaningPool = buildMeaningPool(vocabulary);
+  var meaningsByPrompt = createMeaningsByPrompt(vocabulary);
   var dom = getDomRefs(doc);
   var scratchpad = createScratchpad(dom.writing.canvas, {
     view: view,
@@ -103,6 +109,8 @@ export function createApp(options = {}) {
     selectedMode: "practice",
     globalStats: createEmptyGlobalStats(vocabulary),
     intenseWeights: createEmptyIntenseWeights(vocabulary),
+    intenseHardWeights: createEmptyIntenseWeights(vocabulary),
+    intenseWeightsMode: "normal",
     intenseWeightsSort: "worst",
   };
   var intenseFeedback = createIntenseFeedback(dom.intense, {
@@ -198,6 +206,18 @@ export function createApp(options = {}) {
     );
   }
 
+  function getActiveIntenseWeights() {
+    return appState.intenseWeightsMode === "hard"
+      ? appState.intenseHardWeights
+      : appState.intenseWeights;
+  }
+
+  function getIntenseWeightsTitle() {
+    return appState.intenseWeightsMode === "hard"
+      ? "Ponderaci\u00f3n modo intenso hard"
+      : "Ponderaci\u00f3n modo intenso";
+  }
+
   function sortIntenseWeightEntries(entries) {
     var sortedEntries = entries.slice();
 
@@ -218,12 +238,17 @@ export function createApp(options = {}) {
   }
 
   function renderIntenseWeightsPage() {
-    var entries = createIntenseWeightEntries(vocabulary, appState.intenseWeights);
+    var entries = createIntenseWeightEntries(
+      vocabulary,
+      getActiveIntenseWeights()
+    );
 
     renderIntenseWeightsScreen(dom, {
       entries: sortIntenseWeightEntries(entries),
       summary: getIntenseWeightsSummary(entries),
+      mode: appState.intenseWeightsMode,
       sort: appState.intenseWeightsSort,
+      title: getIntenseWeightsTitle(),
     });
   }
 
@@ -285,13 +310,27 @@ export function createApp(options = {}) {
     timeRemainingMs,
     timeLimitMs
   ) {
-    applyIntenseWeightAnswer(appState.intenseWeights, wordId, {
+    var isHard =
+      appState.intenseSession && appState.intenseSession.answerMode === "text";
+    var weights = isHard ? appState.intenseHardWeights : appState.intenseWeights;
+
+    applyIntenseWeightAnswer(weights, wordId, {
       isCorrect: isCorrect,
       wasFastCorrect:
         isCorrect &&
         wasIntenseAnswerBeforeHalf(timeRemainingMs, timeLimitMs),
     });
-    saveIntenseWeights(storage, appState.intenseWeights);
+
+    if (isHard) {
+      saveIntenseWeightsWithKey(
+        storage,
+        weights,
+        INTENSE_HARD_WEIGHT_STORAGE_KEY
+      );
+      return;
+    }
+
+    saveIntenseWeights(storage, weights);
   }
 
   function syncRangeSelection(writeInputs = false) {
@@ -318,6 +357,8 @@ export function createApp(options = {}) {
         ? "review"
         : dom.start.modeSelect.value === "intense"
           ? "intense"
+        : dom.start.modeSelect.value === "intense-hard"
+          ? "intense-hard"
         : dom.start.modeSelect.value === "writing"
           ? "writing"
           : "practice";
@@ -423,7 +464,9 @@ export function createApp(options = {}) {
     }, INTENSE_HIT_TRANSITION_MS);
   }
 
-  function startIntense(range) {
+  function startIntense(range, answerMode = "choice") {
+    var resolvedAnswerMode = answerMode === "text" ? "text" : "choice";
+
     appState.run = null;
     resetWritingState();
     resetReviewState();
@@ -432,7 +475,13 @@ export function createApp(options = {}) {
       range,
       vocabulary,
       meaningPool,
-      appState.intenseWeights
+      resolvedAnswerMode === "text"
+        ? appState.intenseHardWeights
+        : appState.intenseWeights,
+      {
+        answerMode: resolvedAnswerMode,
+        meaningsByPrompt: meaningsByPrompt,
+      }
     );
     advanceIntenseQuestion(appState.intenseSession, randomFn);
     setScreen("intense");
@@ -496,6 +545,11 @@ export function createApp(options = {}) {
 
     if (selectedMode === "intense") {
       startIntense(selectedRange);
+      return;
+    }
+
+    if (selectedMode === "intense-hard") {
+      startIntense(selectedRange, "text");
       return;
     }
 
@@ -595,6 +649,30 @@ export function createApp(options = {}) {
     }
 
     handleIntenseAnswer(optionButton.dataset.answer || "");
+  }
+
+  function handleIntenseTextSubmit(event) {
+    var answer;
+
+    event.preventDefault();
+
+    if (
+      !appState.intenseSession ||
+      appState.intenseSession.answerMode !== "text" ||
+      appState.intenseSession.isPaused ||
+      appState.intenseSession.isTransitioning
+    ) {
+      return;
+    }
+
+    answer = trimText(dom.intense.textAnswerInput.value);
+
+    if (!answer) {
+      dom.intense.textAnswerInput.focus();
+      return;
+    }
+
+    handleIntenseAnswer(answer);
   }
 
   function handleIntenseResume() {
@@ -740,20 +818,41 @@ export function createApp(options = {}) {
   }
 
   function resetIntenseWeights() {
+    var isHard = appState.intenseWeightsMode === "hard";
+    var message = isHard
+      ? "Esto borrara las ponderaciones del modo intenso hard. Continuar?"
+      : "Esto borrara las ponderaciones del modo intenso. Continuar?";
+
     if (
-      !confirmFn(
-        "Esto borrara las ponderaciones del modo intenso. Continuar?"
-      )
+      !confirmFn(message)
     ) {
       return;
     }
 
-    appState.intenseWeights = createEmptyIntenseWeights(vocabulary);
-    if (appState.intenseSession) {
-      appState.intenseSession.intenseWeightsById = appState.intenseWeights;
+    if (isHard) {
+      appState.intenseHardWeights = createEmptyIntenseWeights(vocabulary);
+      clearIntenseWeightsWithKey(storage, INTENSE_HARD_WEIGHT_STORAGE_KEY);
+      saveIntenseWeightsWithKey(
+        storage,
+        appState.intenseHardWeights,
+        INTENSE_HARD_WEIGHT_STORAGE_KEY
+      );
+    } else {
+      appState.intenseWeights = createEmptyIntenseWeights(vocabulary);
+      clearIntenseWeights(storage);
+      saveIntenseWeights(storage, appState.intenseWeights);
     }
-    clearIntenseWeights(storage);
-    saveIntenseWeights(storage, appState.intenseWeights);
+
+    if (
+      appState.intenseSession &&
+      ((isHard && appState.intenseSession.answerMode === "text") ||
+        (!isHard && appState.intenseSession.answerMode === "choice"))
+    ) {
+      appState.intenseSession.intenseWeightsById = isHard
+        ? appState.intenseHardWeights
+        : appState.intenseWeights;
+    }
+
     renderIntenseWeightsPage();
   }
 
@@ -790,13 +889,20 @@ export function createApp(options = {}) {
     });
     dom.practice.backButton.addEventListener("click", goBackToStart);
     dom.intense.optionsList.addEventListener("click", handleIntenseOptionClick);
+    dom.intense.textAnswerForm.addEventListener(
+      "submit",
+      handleIntenseTextSubmit
+    );
     dom.intense.resumeButton.addEventListener("click", handleIntenseResume);
     dom.intense.soundButton.addEventListener("click", function () {
       intenseFeedback.toggleSound();
     });
     dom.intense.restartButton.addEventListener("click", function () {
       if (appState.intenseSession) {
-        startIntense(appState.intenseSession.run.range);
+        startIntense(
+          appState.intenseSession.run.range,
+          appState.intenseSession.answerMode
+        );
       }
     });
     dom.intense.backButton.addEventListener("click", goBackToStart);
@@ -816,6 +922,11 @@ export function createApp(options = {}) {
     dom.review.backButton.addEventListener("click", goBackToStart);
     dom.stats.backButton.addEventListener("click", goBackToStart);
     dom.stats.resetButton.addEventListener("click", resetStats);
+    dom.intenseWeights.modeSelect.addEventListener("change", function () {
+      appState.intenseWeightsMode =
+        dom.intenseWeights.modeSelect.value === "hard" ? "hard" : "normal";
+      renderIntenseWeightsPage();
+    });
     dom.intenseWeights.sortSelect.addEventListener("change", function () {
       appState.intenseWeightsSort =
         dom.intenseWeights.sortSelect.value === "best"
@@ -849,6 +960,11 @@ export function createApp(options = {}) {
     };
     appState.globalStats = loadGlobalStats(storage, vocabulary);
     appState.intenseWeights = loadIntenseWeights(storage, vocabulary);
+    appState.intenseHardWeights = loadIntenseWeightsWithKey(
+      storage,
+      vocabulary,
+      INTENSE_HARD_WEIGHT_STORAGE_KEY
+    );
 
     dom.start.rangeStartInput.max = String(vocabulary.length);
     dom.start.rangeEndInput.max = String(vocabulary.length);

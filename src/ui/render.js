@@ -135,6 +135,27 @@ function renderIntenseOptions(dom, options, isDisabled) {
   dom.intense.optionsList.appendChild(fragment);
 }
 
+function renderIntenseTextAnswer(dom, isDisabled) {
+  var submitButton = dom.intense.textAnswerForm.querySelector("button");
+
+  dom.intense.optionsList.textContent = "";
+  dom.intense.optionsList.classList.add("hidden");
+  dom.intense.textAnswerForm.classList.remove("hidden");
+  dom.intense.textAnswerInput.disabled = isDisabled;
+
+  if (submitButton) {
+    submitButton.disabled = isDisabled;
+  }
+
+  if (!isDisabled) {
+    dom.intense.textAnswerInput.value = "";
+
+    if (typeof dom.intense.textAnswerInput.focus === "function") {
+      dom.intense.textAnswerInput.focus();
+    }
+  }
+}
+
 function getIntensePauseTitle(reason) {
   return reason === "timeout" ? "Tiempo agotado" : "Fallo";
 }
@@ -213,6 +234,8 @@ export function renderStartSelection(dom, state) {
       ? "Abrir repaso"
       : state.mode === "intense"
         ? "Abrir pr\u00e1ctica intensa"
+      : state.mode === "intense-hard"
+        ? "Abrir pr\u00e1ctica intensa hard"
       : state.mode === "writing"
         ? "Abrir pr\u00e1ctica de escritura"
         : "Empezar pr\u00e1ctica";
@@ -247,12 +270,25 @@ export function renderIntensePractice(dom, state) {
   dom.intense.statPoolSize.textContent = String(session.run.poolSize);
   dom.intense.statAnswered.textContent = String(session.run.answeredCount);
   dom.intense.statCombo.textContent = String(session.comboCount);
+  dom.intense.promptLabel.textContent =
+    session.answerMode === "text"
+      ? "Pr\u00e1ctica intensa hard"
+      : "Pr\u00e1ctica intensa";
   dom.intense.promptWord.textContent = getPromptText(session.run.currentWord);
   dom.intense.promptWord.classList.toggle("is-hit", session.isTransitioning);
   dom.intense.pauseOverlay.classList.toggle("hidden", !session.isPaused);
   dom.intense.pauseTitle.textContent = getIntensePauseTitle(session.pauseReason);
   dom.intense.pauseMeaning.textContent = session.pauseCorrectMeaning || "";
-  renderIntenseOptions(dom, session.run.currentOptions, isDisabled);
+
+  if (session.answerMode === "text") {
+    renderIntenseTextAnswer(dom, isDisabled);
+  } else {
+    dom.intense.textAnswerForm.classList.add("hidden");
+    dom.intense.textAnswerInput.value = "";
+    dom.intense.optionsList.classList.remove("hidden");
+    renderIntenseOptions(dom, session.run.currentOptions, isDisabled);
+  }
+
   renderIntenseTimer(dom, progress);
 }
 
@@ -373,6 +409,8 @@ export function renderIntenseWeightsScreen(dom, state) {
   var fragment = doc.createDocumentFragment();
 
   renderIntenseWeightsSummary(dom, state.summary);
+  dom.intenseWeights.title.textContent = state.title;
+  dom.intenseWeights.modeSelect.value = state.mode;
   dom.intenseWeights.sortSelect.value = state.sort;
   dom.intenseWeights.grid.textContent = "";
 

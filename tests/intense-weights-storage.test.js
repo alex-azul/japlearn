@@ -3,10 +3,16 @@ import test from "node:test";
 
 import {
   clearIntenseWeights,
+  clearIntenseWeightsWithKey,
   loadIntenseWeights,
+  loadIntenseWeightsWithKey,
   saveIntenseWeights,
+  saveIntenseWeightsWithKey,
 } from "../src/data/intense-weights-storage.js";
-import { INTENSE_WEIGHT_STORAGE_KEY } from "../src/domain/intense-weights.js";
+import {
+  INTENSE_HARD_WEIGHT_STORAGE_KEY,
+  INTENSE_WEIGHT_STORAGE_KEY,
+} from "../src/domain/intense-weights.js";
 
 var vocabulary = [
   { id: 1, kanji: "", furigana: "a", romaji: "a", meaning: "one" },
@@ -69,4 +75,43 @@ test("clearIntenseWeights removes persisted data", function () {
   clearIntenseWeights(storage);
 
   assert.equal(storage.getItem(INTENSE_WEIGHT_STORAGE_KEY), null);
+});
+
+test("custom storage keys keep hard intense weights separate", function () {
+  var storage = createMemoryStorage();
+  var normalWeights = {
+    "1": { attempts: 1, fastCorrect: 1, slowCorrect: 0, wrong: 0, score: 1 },
+    "2": { attempts: 0, fastCorrect: 0, slowCorrect: 0, wrong: 0, score: 0 },
+  };
+  var hardWeights = {
+    "1": {
+      attempts: 1,
+      fastCorrect: 0,
+      slowCorrect: 0,
+      wrong: 1,
+      score: -1.25,
+    },
+    "2": { attempts: 0, fastCorrect: 0, slowCorrect: 0, wrong: 0, score: 0 },
+  };
+
+  saveIntenseWeights(storage, normalWeights);
+  saveIntenseWeightsWithKey(
+    storage,
+    hardWeights,
+    INTENSE_HARD_WEIGHT_STORAGE_KEY
+  );
+
+  assert.deepEqual(loadIntenseWeights(storage, vocabulary), normalWeights);
+  assert.deepEqual(
+    loadIntenseWeightsWithKey(
+      storage,
+      vocabulary,
+      INTENSE_HARD_WEIGHT_STORAGE_KEY
+    ),
+    hardWeights
+  );
+
+  clearIntenseWeightsWithKey(storage, INTENSE_HARD_WEIGHT_STORAGE_KEY);
+  assert.notEqual(storage.getItem(INTENSE_WEIGHT_STORAGE_KEY), null);
+  assert.equal(storage.getItem(INTENSE_HARD_WEIGHT_STORAGE_KEY), null);
 });

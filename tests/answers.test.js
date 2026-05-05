@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   getAcceptedTextAnswers,
   isValidTextAnswer,
+  isValidTextAnswerForMeanings,
   normalizeTextAnswer,
 } from "../src/domain/answers.js";
 
@@ -32,4 +33,15 @@ test("isValidTextAnswer rejects partial substrings and empty answers", function 
   assert.equal(isValidTextAnswer("glass", "a pair of glasses"), false);
   assert.equal(isValidTextAnswer("glasses", "a pair of glasses"), false);
   assert.equal(isValidTextAnswer("   ", "light, bright"), false);
+});
+
+test("isValidTextAnswerForMeanings accepts any definition in the prompt group", function () {
+  assert.equal(
+    isValidTextAnswerForMeanings("bridge", ["chopsticks", "bridge"]),
+    true
+  );
+  assert.equal(
+    isValidTextAnswerForMeanings("fork", ["chopsticks", "bridge"]),
+    false
+  );
 });

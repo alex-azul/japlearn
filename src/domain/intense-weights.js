@@ -1,4 +1,6 @@
 export var INTENSE_WEIGHT_STORAGE_KEY = "japlearn2.intense-weights.v1";
+export var INTENSE_HARD_WEIGHT_STORAGE_KEY =
+  "japlearn2.intense-hard-weights.v1";
 export var INTENSE_WEIGHT_MIN_SCORE = -12;
 export var INTENSE_WEIGHT_MAX_SCORE = 12;
 export var INTENSE_FAST_CORRECT_DELTA = 1;

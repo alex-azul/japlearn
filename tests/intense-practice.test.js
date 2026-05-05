@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   advanceIntenseQuestion,
+  createMeaningsByPrompt,
   createIntenseSession,
   INTENSE_TIME_LIMIT_MS,
   pauseIntenseSession,
@@ -103,4 +104,57 @@ test("startIntenseTransition flags the session as animating", function () {
 
   assert.equal(session.isTransitioning, true);
   assert.equal(session.isPaused, false);
+});
+
+test("createMeaningsByPrompt groups meanings for visually identical prompts", function () {
+  var duplicateVocabulary = [
+    { id: 1, kanji: "", furigana: "hashi", romaji: "hashi", meaning: "bridge" },
+    {
+      id: 2,
+      kanji: "",
+      furigana: "hashi",
+      romaji: "hashi",
+      meaning: "chopsticks",
+    },
+  ];
+
+  assert.deepEqual(createMeaningsByPrompt(duplicateVocabulary).hashi, [
+    "bridge",
+    "chopsticks",
+  ]);
+});
+
+test("hard intense mode accepts any meaning for the same visible prompt", function () {
+  var duplicateVocabulary = [
+    { id: 1, kanji: "", furigana: "hashi", romaji: "hashi", meaning: "bridge" },
+    {
+      id: 2,
+      kanji: "",
+      furigana: "hashi",
+      romaji: "hashi",
+      meaning: "chopsticks",
+    },
+    { id: 3, kanji: "", furigana: "ao", romaji: "ao", meaning: "blue" },
+    { id: 4, kanji: "", furigana: "aka", romaji: "aka", meaning: "red" },
+  ];
+  var session = createIntenseSession(
+    { start: 1, end: 4 },
+    duplicateVocabulary,
+    duplicateVocabulary.map(function (entry) {
+      return entry.meaning;
+    }),
+    {},
+    {
+      answerMode: "text",
+    }
+  );
+
+  advanceIntenseQuestion(session, function () {
+    return 0;
+  });
+
+  assert.equal(session.answerMode, "text");
+  assert.equal(session.run.currentOptions.length, 0);
+  assert.equal(submitIntenseAnswer(session, "chopsticks"), true);
+  assert.equal(session.pauseCorrectMeaning, "bridge / chopsticks");
 });

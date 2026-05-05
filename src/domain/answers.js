@@ -28,11 +28,20 @@ export function getAcceptedTextAnswers(meaning) {
 }
 
 export function isValidTextAnswer(answer, meaning) {
+  return isValidTextAnswerForMeanings(answer, [meaning]);
+}
+
+export function isValidTextAnswerForMeanings(answer, meanings) {
   var normalizedAnswer = normalizeTextAnswer(answer);
+  var acceptedAnswers;
 
   if (!normalizedAnswer) {
     return false;
   }
 
-  return getAcceptedTextAnswers(meaning).includes(normalizedAnswer);
+  acceptedAnswers = meanings.reduce(function (answers, meaning) {
+    return answers.concat(getAcceptedTextAnswers(meaning));
+  }, []);
+
+  return acceptedAnswers.includes(normalizedAnswer);
 }
