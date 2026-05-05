@@ -47,6 +47,19 @@ function pickByWeight(weightedItems, randomFn) {
   return weightedItems[weightedItems.length - 1].entry;
 }
 
+function getSafeWeightMultiplier(entry, options) {
+  var multiplier =
+    options && typeof options.getWeightMultiplier === "function"
+      ? Number(options.getWeightMultiplier(entry))
+      : 1;
+
+  if (!Number.isFinite(multiplier) || multiplier <= 0) {
+    return 1;
+  }
+
+  return multiplier;
+}
+
 export function clampInteger(value, fallback, minValue, maxValue) {
   var nextValue = Number(value);
 
@@ -79,19 +92,28 @@ export function getRangeEntries(entries, range) {
   return entries.slice(range.start - 1, range.end);
 }
 
-export function pickNextWord(runState, randomFn = Math.random) {
+export function pickNextWord(runState, randomFn = Math.random, options = {}) {
   var candidates = getWeightedCandidates(runState);
-  var unseen = candidates.filter(function (entry) {
-    return runState.statsById.get(entry.id).appearances === 0;
-  });
+  var unseen;
 
-  if (unseen.length > 0) {
+  if (options.prioritizeUnseen !== false) {
+    unseen = candidates.filter(function (entry) {
+      return runState.statsById.get(entry.id).appearances === 0;
+    });
+  } else {
+    unseen = [];
+  }
+
+  if (unseen.length > 0 && !options.weightUnseen) {
     return unseen[Math.floor(randomFn() * unseen.length)];
   }
 
-  var weightedItems = candidates.map(function (entry) {
+  var weightedCandidates = unseen.length > 0 ? unseen : candidates;
+  var weightedItems = weightedCandidates.map(function (entry) {
     var stats = runState.statsById.get(entry.id);
-    var weight = 1 + (1 - stats.winRate) * 100 + stats.wrong * 10;
+    var weight =
+      (1 + (1 - stats.winRate) * 100 + stats.wrong * 10) *
+      getSafeWeightMultiplier(entry, options);
 
     return { entry: entry, weight: weight };
   });

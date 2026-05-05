@@ -1,13 +1,20 @@
 import { recordChoiceAnswer, createRunState } from "./run.js";
 import { createOptions, pickNextWord } from "./selection.js";
+import { getIntenseWeightMultiplier } from "./intense-weights.js";
 
 export var INTENSE_OPTION_COUNT = 3;
 export var INTENSE_TIME_LIMIT_MS = 5000;
 export var INTENSE_HIT_TRANSITION_MS = 190;
 
-export function createIntenseSession(range, vocabulary, meaningPool) {
+export function createIntenseSession(
+  range,
+  vocabulary,
+  meaningPool,
+  intenseWeightsById = {}
+) {
   return {
     run: createRunState(range, vocabulary, meaningPool),
+    intenseWeightsById: intenseWeightsById,
     comboCount: 0,
     isPaused: false,
     pauseReason: "",
@@ -19,7 +26,14 @@ export function createIntenseSession(range, vocabulary, meaningPool) {
 }
 
 export function advanceIntenseQuestion(session, randomFn = Math.random) {
-  var nextWord = pickNextWord(session.run, randomFn);
+  var nextWord = pickNextWord(session.run, randomFn, {
+    prioritizeUnseen: false,
+    getWeightMultiplier: function (entry) {
+      return getIntenseWeightMultiplier(
+        session.intenseWeightsById[String(entry.id)]
+      );
+    },
+  });
 
   session.run.currentWord = nextWord;
   session.run.currentResponseMode = "choice";

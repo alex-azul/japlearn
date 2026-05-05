@@ -106,6 +106,13 @@
             <button id="stats-button" class="secondary-button" type="button">
               Ver stats
             </button>
+            <button
+              id="intense-weights-button"
+              class="secondary-button"
+              type="button"
+            >
+              Ver ponderaciones intenso
+            </button>
           </div>
         </div>
       </section>
@@ -409,6 +416,69 @@
           </button>
         </div>
       </section>
+
+      <section
+        id="intense-weights-screen"
+        class="screen screen--intense-weights hidden"
+      >
+        <header class="run-header">
+          <div class="stat-card">
+            <span class="stat-label">Palabras con peso</span>
+            <strong id="intense-weights-tracked-count">0</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Intentos intensos</span>
+            <strong id="intense-weights-total-attempts">0</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Necesitan refuerzo</span>
+            <strong id="intense-weights-needs-practice-count">0</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Van fuertes</span>
+            <strong id="intense-weights-strong-count">0</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Media</span>
+            <strong id="intense-weights-average-score">0.00</strong>
+          </div>
+        </header>
+
+        <section class="review-card">
+          <div class="screen-toolbar">
+            <p class="prompt-label">Ponderaci&oacute;n modo intenso</p>
+            <label
+              class="field-label screen-toolbar-field"
+              for="intense-weights-sort-select"
+            >
+              Orden
+              <select id="intense-weights-sort-select" class="mode-select">
+                <option value="worst">Peor a mejor</option>
+                <option value="best">Mejor a peor</option>
+                <option value="vocabulary">Orden vocabulario</option>
+              </select>
+            </label>
+          </div>
+          <div id="intense-weights-grid" class="review-grid stats-grid"></div>
+        </section>
+
+        <div class="action-row">
+          <button
+            id="intense-weights-reset-button"
+            class="secondary-button"
+            type="button"
+          >
+            Reiniciar ponderaciones
+          </button>
+          <button
+            id="intense-weights-back-button"
+            class="secondary-button"
+            type="button"
+          >
+            Volver al inicio
+          </button>
+        </div>
+      </section>
     </main>
 
     <script>
@@ -433,6 +503,9 @@
           document.getElementById("review-screen").classList.add("hidden");
           document.getElementById("writing-screen").classList.add("hidden");
           document.getElementById("stats-screen").classList.add("hidden");
+          document
+            .getElementById("intense-weights-screen")
+            .classList.add("hidden");
 
           errorScreen.classList.remove("hidden");
           errorScreen.querySelector("h1").textContent = "Abre la app por HTTP";

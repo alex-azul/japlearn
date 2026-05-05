@@ -3,12 +3,23 @@ import {
   loadGlobalStats,
   saveGlobalStats,
 } from "../data/global-stats-storage.js";
+import {
+  clearIntenseWeights,
+  loadIntenseWeights,
+  saveIntenseWeights,
+} from "../data/intense-weights-storage.js";
 import { buildMeaningPool, loadVocabulary } from "../data/vocabulary.js";
 import {
   applyGlobalAnswer,
   createEmptyGlobalStats,
   createStatsScreenEntries,
 } from "../domain/global-stats.js";
+import {
+  applyIntenseWeightAnswer,
+  createEmptyIntenseWeights,
+  createIntenseWeightEntries,
+  wasIntenseAnswerBeforeHalf,
+} from "../domain/intense-weights.js";
 import {
   advanceIntenseQuestion,
   createIntenseSession,
@@ -34,6 +45,7 @@ import { createIntenseFeedback } from "../ui/intense-feedback.js";
 import {
   renderError,
   renderIntensePractice,
+  renderIntenseWeightsScreen,
   renderIntenseTimer,
   renderPractice,
   renderReview,
@@ -90,6 +102,8 @@ export function createApp(options = {}) {
     },
     selectedMode: "practice",
     globalStats: createEmptyGlobalStats(vocabulary),
+    intenseWeights: createEmptyIntenseWeights(vocabulary),
+    intenseWeightsSort: "worst",
   };
   var intenseFeedback = createIntenseFeedback(dom.intense, {
     view: view,
@@ -157,6 +171,62 @@ export function createApp(options = {}) {
     });
   }
 
+  function getIntenseWeightsSummary(entries) {
+    return entries.reduce(
+      function (summary, item) {
+        if (item.weight.attempts > 0) {
+          summary.trackedCount += 1;
+        }
+
+        if (item.score < 0) {
+          summary.needsPracticeCount += 1;
+        } else if (item.score > 0) {
+          summary.strongCount += 1;
+        }
+
+        summary.totalAttempts += item.weight.attempts;
+        summary.totalScore += item.score;
+        return summary;
+      },
+      {
+        trackedCount: 0,
+        needsPracticeCount: 0,
+        strongCount: 0,
+        totalAttempts: 0,
+        totalScore: 0,
+      }
+    );
+  }
+
+  function sortIntenseWeightEntries(entries) {
+    var sortedEntries = entries.slice();
+
+    if (appState.intenseWeightsSort === "vocabulary") {
+      return sortedEntries;
+    }
+
+    sortedEntries.sort(function (left, right) {
+      var scoreDelta =
+        appState.intenseWeightsSort === "best"
+          ? right.score - left.score
+          : left.score - right.score;
+
+      return scoreDelta || left.entry.id - right.entry.id;
+    });
+
+    return sortedEntries;
+  }
+
+  function renderIntenseWeightsPage() {
+    var entries = createIntenseWeightEntries(vocabulary, appState.intenseWeights);
+
+    renderIntenseWeightsScreen(dom, {
+      entries: sortIntenseWeightEntries(entries),
+      summary: getIntenseWeightsSummary(entries),
+      sort: appState.intenseWeightsSort,
+    });
+  }
+
   function applyTheme(theme) {
     appState.selectedTheme = syncThemeSelection(dom, theme);
   }
@@ -207,6 +277,21 @@ export function createApp(options = {}) {
   function recordGlobalAnswerResult(wordId, isCorrect) {
     applyGlobalAnswer(appState.globalStats, wordId, isCorrect);
     saveGlobalStats(storage, appState.globalStats);
+  }
+
+  function recordIntenseWeightResult(
+    wordId,
+    isCorrect,
+    timeRemainingMs,
+    timeLimitMs
+  ) {
+    applyIntenseWeightAnswer(appState.intenseWeights, wordId, {
+      isCorrect: isCorrect,
+      wasFastCorrect:
+        isCorrect &&
+        wasIntenseAnswerBeforeHalf(timeRemainingMs, timeLimitMs),
+    });
+    saveIntenseWeights(storage, appState.intenseWeights);
   }
 
   function syncRangeSelection(writeInputs = false) {
@@ -306,6 +391,20 @@ export function createApp(options = {}) {
     appState.intenseTimerFrameId = view.requestAnimationFrame(updateIntenseTimer);
   }
 
+  function getCurrentIntenseTimeRemaining() {
+    if (
+      appState.intenseSession &&
+      appState.intenseDeadlineAt > 0 &&
+      view &&
+      view.performance &&
+      typeof view.performance.now === "function"
+    ) {
+      return Math.max(appState.intenseDeadlineAt - view.performance.now(), 0);
+    }
+
+    return appState.intenseSession ? appState.intenseSession.timeRemainingMs : 0;
+  }
+
   function beginIntenseTransition() {
     stopIntenseTimer();
     stopIntenseTransition();
@@ -329,7 +428,12 @@ export function createApp(options = {}) {
     resetWritingState();
     resetReviewState();
     clearIntenseState();
-    appState.intenseSession = createIntenseSession(range, vocabulary, meaningPool);
+    appState.intenseSession = createIntenseSession(
+      range,
+      vocabulary,
+      meaningPool,
+      appState.intenseWeights
+    );
     advanceIntenseQuestion(appState.intenseSession, randomFn);
     setScreen("intense");
     renderIntensePage();
@@ -372,6 +476,15 @@ export function createApp(options = {}) {
     setScreen("stats");
   }
 
+  function startIntenseWeights() {
+    appState.run = null;
+    clearIntenseState();
+    resetWritingState();
+    resetReviewState();
+    renderIntenseWeightsPage();
+    setScreen("intenseWeights");
+  }
+
   function startSelectedMode() {
     var selectedRange = syncRangeSelection(true);
     var selectedMode = syncModeSelection();
@@ -409,6 +522,8 @@ export function createApp(options = {}) {
   function handleIntenseAnswer(answerValue, failureReason = "wrong") {
     var currentWordId;
     var isCorrect;
+    var timeRemainingMs;
+    var timeLimitMs;
 
     if (
       !appState.intenseSession ||
@@ -418,10 +533,19 @@ export function createApp(options = {}) {
       return;
     }
 
+    timeRemainingMs = getCurrentIntenseTimeRemaining();
+    timeLimitMs = appState.intenseSession.timeLimitMs;
+    appState.intenseSession.timeRemainingMs = timeRemainingMs;
     stopIntenseTimer();
     currentWordId = appState.intenseSession.run.currentWord.id;
     isCorrect = submitIntenseAnswer(appState.intenseSession, answerValue);
     recordGlobalAnswerResult(currentWordId, isCorrect);
+    recordIntenseWeightResult(
+      currentWordId,
+      isCorrect,
+      timeRemainingMs,
+      timeLimitMs
+    );
 
     if (isCorrect) {
       beginIntenseTransition();
@@ -615,6 +739,24 @@ export function createApp(options = {}) {
     renderStatsPage();
   }
 
+  function resetIntenseWeights() {
+    if (
+      !confirmFn(
+        "Esto borrara las ponderaciones del modo intenso. Continuar?"
+      )
+    ) {
+      return;
+    }
+
+    appState.intenseWeights = createEmptyIntenseWeights(vocabulary);
+    if (appState.intenseSession) {
+      appState.intenseSession.intenseWeightsById = appState.intenseWeights;
+    }
+    clearIntenseWeights(storage);
+    saveIntenseWeights(storage, appState.intenseWeights);
+    renderIntenseWeightsPage();
+  }
+
   function bindEvents() {
     Object.keys(dom.themeButtons).forEach(function (theme) {
       dom.themeButtons[theme].addEventListener("click", function () {
@@ -637,6 +779,7 @@ export function createApp(options = {}) {
     dom.start.modeSelect.addEventListener("change", syncModeSelection);
     dom.start.startButton.addEventListener("click", startSelectedMode);
     dom.start.statsButton.addEventListener("click", startStats);
+    dom.start.intenseWeightsButton.addEventListener("click", startIntenseWeights);
 
     dom.practice.optionsList.addEventListener("click", handleOptionClick);
     dom.practice.textAnswerForm.addEventListener("submit", handleTextSubmit);
@@ -673,6 +816,20 @@ export function createApp(options = {}) {
     dom.review.backButton.addEventListener("click", goBackToStart);
     dom.stats.backButton.addEventListener("click", goBackToStart);
     dom.stats.resetButton.addEventListener("click", resetStats);
+    dom.intenseWeights.sortSelect.addEventListener("change", function () {
+      appState.intenseWeightsSort =
+        dom.intenseWeights.sortSelect.value === "best"
+          ? "best"
+          : dom.intenseWeights.sortSelect.value === "vocabulary"
+            ? "vocabulary"
+            : "worst";
+      renderIntenseWeightsPage();
+    });
+    dom.intenseWeights.resetButton.addEventListener(
+      "click",
+      resetIntenseWeights
+    );
+    dom.intenseWeights.backButton.addEventListener("click", goBackToStart);
     doc.addEventListener("keydown", handleGlobalKeyDown);
   }
 
@@ -691,6 +848,7 @@ export function createApp(options = {}) {
       end: Math.min(20, vocabulary.length),
     };
     appState.globalStats = loadGlobalStats(storage, vocabulary);
+    appState.intenseWeights = loadIntenseWeights(storage, vocabulary);
 
     dom.start.rangeStartInput.max = String(vocabulary.length);
     dom.start.rangeEndInput.max = String(vocabulary.length);

@@ -119,3 +119,30 @@ test("pickNextWord avoids repeating the last word when the pool is larger than f
     1
   );
 });
+
+test("pickNextWord can apply a soft external multiplier", function () {
+  var entries = [
+    createEntry(1, "one"),
+    createEntry(2, "two"),
+  ];
+  var runState = {
+    runPool: entries,
+    statsById: createStats(entries, 1),
+    lastWordId: null,
+  };
+
+  assert.equal(
+    pickNextWord(
+      runState,
+      function () {
+        return 0.3;
+      },
+      {
+        getWeightMultiplier: function (entry) {
+          return entry.id === 2 ? 3 : 1;
+        },
+      }
+    ).id,
+    2
+  );
+});

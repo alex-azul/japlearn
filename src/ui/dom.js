@@ -9,6 +9,7 @@ export function getDomRefs(doc = document) {
       writing: doc.getElementById("writing-screen"),
       review: doc.getElementById("review-screen"),
       stats: doc.getElementById("stats-screen"),
+      intenseWeights: doc.getElementById("intense-weights-screen"),
     },
     errorMessage: doc.getElementById("error-message"),
     themeButtons: {
@@ -25,6 +26,7 @@ export function getDomRefs(doc = document) {
       rangeDisplay: doc.getElementById("range-display"),
       startButton: doc.getElementById("start-button"),
       statsButton: doc.getElementById("stats-button"),
+      intenseWeightsButton: doc.getElementById("intense-weights-button"),
     },
     practice: {
       statRange: doc.getElementById("stat-range"),
@@ -92,6 +94,19 @@ export function getDomRefs(doc = document) {
       grid: doc.getElementById("stats-grid"),
       resetButton: doc.getElementById("stats-reset-button"),
       backButton: doc.getElementById("stats-back-button"),
+    },
+    intenseWeights: {
+      trackedCount: doc.getElementById("intense-weights-tracked-count"),
+      totalAttempts: doc.getElementById("intense-weights-total-attempts"),
+      needsPracticeCount: doc.getElementById(
+        "intense-weights-needs-practice-count"
+      ),
+      strongCount: doc.getElementById("intense-weights-strong-count"),
+      averageScore: doc.getElementById("intense-weights-average-score"),
+      sortSelect: doc.getElementById("intense-weights-sort-select"),
+      grid: doc.getElementById("intense-weights-grid"),
+      resetButton: doc.getElementById("intense-weights-reset-button"),
+      backButton: doc.getElementById("intense-weights-back-button"),
     },
   };
 }

@@ -1,4 +1,5 @@
 import { getPromptText, getReadingText } from "../domain/answers.js";
+import { INTENSE_WEIGHT_MAX_SCORE } from "../domain/intense-weights.js";
 import { formatRange } from "../domain/selection.js";
 import { formatAccuracy } from "../domain/run.js";
 import {
@@ -30,11 +31,61 @@ function getStatsTintStyle(statsEntry) {
   return "rgba(" + r + ", " + g + ", " + b + ", 0.18)";
 }
 
+function getIntenseWeightTintStyle(weightEntry) {
+  var intensity = Math.min(
+    Math.abs(weightEntry.score) / INTENSE_WEIGHT_MAX_SCORE,
+    1
+  );
+
+  if (intensity === 0) {
+    return "rgba(127, 127, 127, 0.08)";
+  }
+
+  var color =
+    weightEntry.score < 0
+      ? {
+          r: 191,
+          g: 68,
+          b: 76,
+        }
+      : {
+          r: 62,
+          g: 155,
+          b: 98,
+        };
+
+  return (
+    "rgba(" +
+    color.r +
+    ", " +
+    color.g +
+    ", " +
+    color.b +
+    ", " +
+    (0.08 + intensity * 0.2).toFixed(3) +
+    ")"
+  );
+}
+
 function renderStatsSummary(dom, summary) {
   dom.stats.trackedCount.textContent = String(summary.trackedCount);
   dom.stats.totalAppearances.textContent = String(summary.totalAppearances);
   dom.stats.totalCorrect.textContent = String(summary.totalCorrect);
   dom.stats.totalWrong.textContent = String(summary.totalWrong);
+}
+
+function renderIntenseWeightsSummary(dom, summary) {
+  var averageScore =
+    summary.trackedCount > 0 ? summary.totalScore / summary.trackedCount : 0;
+
+  dom.intenseWeights.trackedCount.textContent = String(summary.trackedCount);
+  dom.intenseWeights.totalAttempts.textContent = String(summary.totalAttempts);
+  dom.intenseWeights.needsPracticeCount.textContent = String(
+    summary.needsPracticeCount
+  );
+  dom.intenseWeights.strongCount.textContent = String(summary.strongCount);
+  dom.intenseWeights.averageScore.textContent =
+    averageScore > 0 ? "+" + averageScore.toFixed(2) : averageScore.toFixed(2);
 }
 
 function appendStatsPill(doc, parent, label, value) {
@@ -315,4 +366,46 @@ export function renderStatsScreen(dom, state) {
   });
 
   dom.stats.grid.appendChild(fragment);
+}
+
+export function renderIntenseWeightsScreen(dom, state) {
+  var doc = dom.intenseWeights.grid.ownerDocument;
+  var fragment = doc.createDocumentFragment();
+
+  renderIntenseWeightsSummary(dom, state.summary);
+  dom.intenseWeights.sortSelect.value = state.sort;
+  dom.intenseWeights.grid.textContent = "";
+
+  state.entries.forEach(function (item) {
+    var card = doc.createElement("article");
+    var word = doc.createElement("h2");
+    var reading = doc.createElement("p");
+    var meaning = doc.createElement("p");
+    var statsMeta = doc.createElement("div");
+
+    card.className = "review-item stats-item intense-weight-item";
+    card.style.backgroundColor = getIntenseWeightTintStyle(item);
+
+    word.className = "review-word japanese-display";
+    reading.className = "review-reading";
+    meaning.className = "review-meaning";
+    statsMeta.className = "stats-meta";
+
+    word.textContent = getPromptText(item.entry);
+    reading.textContent = getReadingText(item.entry);
+    meaning.textContent = item.entry.meaning;
+    appendStatsPill(doc, statsMeta, "Pond", item.scoreLabel);
+    appendStatsPill(doc, statsMeta, "Intentos", item.weight.attempts);
+    appendStatsPill(doc, statsMeta, "R\u00e1pidos", item.weight.fastCorrect);
+    appendStatsPill(doc, statsMeta, "Lentos", item.weight.slowCorrect);
+    appendStatsPill(doc, statsMeta, "Fallos", item.weight.wrong);
+
+    card.appendChild(word);
+    card.appendChild(reading);
+    card.appendChild(meaning);
+    card.appendChild(statsMeta);
+    fragment.appendChild(card);
+  });
+
+  dom.intenseWeights.grid.appendChild(fragment);
 }
