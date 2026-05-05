@@ -107,7 +107,9 @@ export function recordTextAnswer(
     Array.isArray(acceptedMeanings) && acceptedMeanings.length > 0
       ? acceptedMeanings
       : [currentWord.meaning];
-  var isCorrect = isValidTextAnswerForMeanings(answerValue, meanings);
+  var isCorrect = isValidTextAnswerForMeanings(answerValue, meanings, {
+    acceptStandaloneWords: options.acceptStandaloneWords === true,
+  });
 
   stats.appearances += 1;
 

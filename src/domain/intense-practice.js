@@ -5,6 +5,7 @@ import { getIntenseWeightMultiplier } from "./intense-weights.js";
 
 export var INTENSE_OPTION_COUNT = 3;
 export var INTENSE_TIME_LIMIT_MS = 5000;
+export var INTENSE_HARD_TIME_LIMIT_MS = INTENSE_TIME_LIMIT_MS * 2;
 export var INTENSE_HIT_TRANSITION_MS = 190;
 
 function pushUnique(items, value) {
@@ -47,10 +48,14 @@ export function createIntenseSession(
   intenseWeightsById = {},
   options = {}
 ) {
+  var answerMode = options.answerMode === "text" ? "text" : "choice";
+  var timeLimitMs =
+    answerMode === "text" ? INTENSE_HARD_TIME_LIMIT_MS : INTENSE_TIME_LIMIT_MS;
+
   return {
     run: createRunState(range, vocabulary, meaningPool),
     intenseWeightsById: intenseWeightsById,
-    answerMode: options.answerMode === "text" ? "text" : "choice",
+    answerMode: answerMode,
     meaningsByPrompt:
       options.meaningsByPrompt || createMeaningsByPrompt(vocabulary),
     currentAcceptedMeanings: [],
@@ -59,8 +64,8 @@ export function createIntenseSession(
     pauseReason: "",
     pauseCorrectMeaning: "",
     isTransitioning: false,
-    timeLimitMs: INTENSE_TIME_LIMIT_MS,
-    timeRemainingMs: INTENSE_TIME_LIMIT_MS,
+    timeLimitMs: timeLimitMs,
+    timeRemainingMs: timeLimitMs,
   };
 }
 
@@ -102,6 +107,7 @@ export function submitIntenseAnswer(session, answerValue) {
           answerValue,
           session.currentAcceptedMeanings,
           {
+            acceptStandaloneWords: true,
             responseModeOnCorrect: "text",
             responseModeOnWrong: "text",
           }

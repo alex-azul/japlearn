@@ -18,6 +18,13 @@ test("getAcceptedTextAnswers splits comma-separated meanings", function () {
     "light",
     "bright",
   ]);
+  assert.deepEqual(getAcceptedTextAnswers("to open"), ["to open"]);
+});
+
+test("getAcceptedTextAnswers can include standalone words", function () {
+  assert.deepEqual(getAcceptedTextAnswers("to open", {
+    acceptStandaloneWords: true,
+  }), ["to open", "open"]);
 });
 
 test("isValidTextAnswer accepts any normalized comma-separated synonym", function () {
@@ -29,9 +36,30 @@ test("isValidTextAnswer accepts any normalized comma-separated synonym", functio
   assert.equal(isValidTextAnswer("pair of glasses", "a pair of glasses"), true);
 });
 
-test("isValidTextAnswer rejects partial substrings and empty answers", function () {
+test("isValidTextAnswer can accept standalone words when enabled", function () {
+  assert.equal(
+    isValidTextAnswer("open", "to open", {
+      acceptStandaloneWords: true,
+    }),
+    true
+  );
+  assert.equal(
+    isValidTextAnswer("glasses", "a pair of glasses", {
+      acceptStandaloneWords: true,
+    }),
+    true
+  );
+});
+
+test("isValidTextAnswer rejects partial substrings, filler words and empty answers", function () {
   assert.equal(isValidTextAnswer("glass", "a pair of glasses"), false);
   assert.equal(isValidTextAnswer("glasses", "a pair of glasses"), false);
+  assert.equal(
+    isValidTextAnswer("of", "a pair of glasses", {
+      acceptStandaloneWords: true,
+    }),
+    false
+  );
   assert.equal(isValidTextAnswer("   ", "light, bright"), false);
 });
 

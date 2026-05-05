@@ -5,6 +5,7 @@ import {
   advanceIntenseQuestion,
   createMeaningsByPrompt,
   createIntenseSession,
+  INTENSE_HARD_TIME_LIMIT_MS,
   INTENSE_TIME_LIMIT_MS,
   pauseIntenseSession,
   startIntenseTransition,
@@ -52,6 +53,21 @@ test("createIntenseSession initializes combo and time limit", function () {
   assert.equal(session.comboCount, 0);
   assert.equal(session.timeLimitMs, INTENSE_TIME_LIMIT_MS);
   assert.equal(session.run.poolSize, 4);
+});
+
+test("hard intense mode initializes with double time", function () {
+  var session = createIntenseSession(
+    { start: 1, end: 4 },
+    vocabulary,
+    meaningPool,
+    {},
+    {
+      answerMode: "text",
+    }
+  );
+
+  assert.equal(session.timeLimitMs, INTENSE_HARD_TIME_LIMIT_MS);
+  assert.equal(session.timeRemainingMs, INTENSE_HARD_TIME_LIMIT_MS);
 });
 
 test("advanceIntenseQuestion always prepares a choice question with three options", function () {
@@ -157,4 +173,31 @@ test("hard intense mode accepts any meaning for the same visible prompt", functi
   assert.equal(session.run.currentOptions.length, 0);
   assert.equal(submitIntenseAnswer(session, "chopsticks"), true);
   assert.equal(session.pauseCorrectMeaning, "bridge / chopsticks");
+});
+
+test("hard intense mode accepts standalone meaning words", function () {
+  var openVocabulary = [
+    { id: 1, kanji: "", furigana: "akeru", romaji: "akeru", meaning: "to open" },
+    { id: 2, kanji: "", furigana: "aoi", romaji: "aoi", meaning: "blue" },
+    { id: 3, kanji: "", furigana: "akai", romaji: "akai", meaning: "red" },
+    { id: 4, kanji: "", furigana: "shiroi", romaji: "shiroi", meaning: "white" },
+  ];
+  var session = createIntenseSession(
+    { start: 1, end: 4 },
+    openVocabulary,
+    openVocabulary.map(function (entry) {
+      return entry.meaning;
+    }),
+    {},
+    {
+      answerMode: "text",
+    }
+  );
+
+  advanceIntenseQuestion(session, function () {
+    return 0;
+  });
+
+  assert.equal(session.run.currentWord.meaning, "to open");
+  assert.equal(submitIntenseAnswer(session, "open"), true);
 });
