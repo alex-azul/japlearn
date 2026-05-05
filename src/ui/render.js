@@ -238,6 +238,10 @@ export function renderStartSelection(dom, state) {
         ? "Abrir pr\u00e1ctica intensa hard"
       : state.mode === "writing"
         ? "Abrir pr\u00e1ctica de escritura"
+      : state.mode === "radicals-review"
+        ? "Abrir grid de radicales"
+      : state.mode === "radicals-intense"
+        ? "Abrir radicales intenso"
         : "Empezar pr\u00e1ctica";
 }
 
@@ -271,9 +275,10 @@ export function renderIntensePractice(dom, state) {
   dom.intense.statAnswered.textContent = String(session.run.answeredCount);
   dom.intense.statCombo.textContent = String(session.comboCount);
   dom.intense.promptLabel.textContent =
-    session.answerMode === "text"
+    session.promptLabel ||
+    (session.answerMode === "text"
       ? "Pr\u00e1ctica intensa hard"
-      : "Pr\u00e1ctica intensa";
+      : "Pr\u00e1ctica intensa");
   dom.intense.promptWord.textContent = getPromptText(session.run.currentWord);
   dom.intense.promptWord.classList.toggle("is-hit", session.isTransitioning);
   dom.intense.pauseOverlay.classList.toggle("hidden", !session.isPaused);
@@ -307,6 +312,7 @@ export function renderReview(dom, state) {
     var word = doc.createElement("h2");
     var reading = doc.createElement("p");
     var meaning = doc.createElement("p");
+    var mnemonic = doc.createElement("p");
     var wordId = String(entry.id);
 
     card.className = "review-item";
@@ -322,14 +328,19 @@ export function renderReview(dom, state) {
     word.className = "review-word japanese-display";
     reading.className = "review-reading";
     meaning.className = "review-meaning";
+    mnemonic.className = "review-mnemonic";
 
     word.textContent = getPromptText(entry);
     reading.textContent = getReadingText(entry);
     meaning.textContent = entry.meaning;
+    mnemonic.textContent = entry.mnemonic || "";
 
     card.appendChild(word);
     card.appendChild(reading);
     card.appendChild(meaning);
+    if (entry.mnemonic) {
+      card.appendChild(mnemonic);
+    }
     fragment.appendChild(card);
   });
 

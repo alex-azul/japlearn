@@ -735,7 +735,8 @@ h1 {
 }
 
 .review-reading,
-.review-meaning {
+.review-meaning,
+.review-mnemonic {
   margin: 0;
   line-height: 1.5;
 }
@@ -749,6 +750,14 @@ h1 {
 
 .review-meaning {
   font-size: 1.02rem;
+}
+
+.review-mnemonic {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  color: var(--text-soft);
+  font-size: 0.95rem;
 }
 
 .stats-item {

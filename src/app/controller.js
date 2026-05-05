@@ -11,6 +11,7 @@ import {
   saveIntenseWeights,
   saveIntenseWeightsWithKey,
 } from "../data/intense-weights-storage.js";
+import { loadRadicals } from "../data/radicals.js";
 import { buildMeaningPool, loadVocabulary } from "../data/vocabulary.js";
 import {
   applyGlobalAnswer,
@@ -22,6 +23,7 @@ import {
   createEmptyIntenseWeights,
   createIntenseWeightEntries,
   INTENSE_HARD_WEIGHT_STORAGE_KEY,
+  RADICAL_INTENSE_WEIGHT_STORAGE_KEY,
   wasIntenseAnswerBeforeHalf,
 } from "../domain/intense-weights.js";
 import {
@@ -64,6 +66,7 @@ import { syncThemeSelection } from "../ui/theme.js";
 
 export function createApp(options = {}) {
   var rawVocabulary = options.rawVocabulary || [];
+  var rawRadicals = options.rawRadicals || [];
   var doc = options.document || document;
   var view = doc.defaultView || (typeof window !== "undefined" ? window : null);
   var randomFn = options.randomFn || Math.random;
@@ -78,8 +81,11 @@ export function createApp(options = {}) {
           return false;
         });
   var vocabulary = loadVocabulary(rawVocabulary);
+  var radicals = loadRadicals(rawRadicals);
   var meaningPool = buildMeaningPool(vocabulary);
+  var radicalMeaningPool = buildMeaningPool(radicals);
   var meaningsByPrompt = createMeaningsByPrompt(vocabulary);
+  var radicalMeaningsByPrompt = createMeaningsByPrompt(radicals);
   var dom = getDomRefs(doc);
   var scratchpad = createScratchpad(dom.writing.canvas, {
     view: view,
@@ -110,6 +116,7 @@ export function createApp(options = {}) {
     globalStats: createEmptyGlobalStats(vocabulary),
     intenseWeights: createEmptyIntenseWeights(vocabulary),
     intenseHardWeights: createEmptyIntenseWeights(vocabulary),
+    radicalIntenseWeights: createEmptyIntenseWeights(radicals),
     intenseWeightsMode: "normal",
     intenseWeightsSort: "worst",
   };
@@ -123,11 +130,26 @@ export function createApp(options = {}) {
     showScreen(dom, screenName);
   }
 
+  function isRadicalMode(mode) {
+    return mode === "radicals-review" || mode === "radicals-intense";
+  }
+
+  function getStartTotal(mode = appState.selectedMode) {
+    return isRadicalMode(mode) ? radicals.length : vocabulary.length;
+  }
+
+  function syncStartRangeLimits(mode = appState.selectedMode) {
+    var total = getStartTotal(mode);
+
+    dom.start.rangeStartInput.max = String(total);
+    dom.start.rangeEndInput.max = String(total);
+  }
+
   function renderStart() {
     renderStartSelection(dom, {
       range: appState.selectedRange,
       mode: appState.selectedMode,
-      total: vocabulary.length,
+      total: getStartTotal(),
     });
   }
 
@@ -310,9 +332,24 @@ export function createApp(options = {}) {
     timeRemainingMs,
     timeLimitMs
   ) {
-    var isHard =
-      appState.intenseSession && appState.intenseSession.answerMode === "text";
+    var session = appState.intenseSession;
+    var isHard = session && session.answerMode === "text";
     var weights = isHard ? appState.intenseHardWeights : appState.intenseWeights;
+
+    if (session && session.dataKind === "radical") {
+      applyIntenseWeightAnswer(appState.radicalIntenseWeights, wordId, {
+        isCorrect: isCorrect,
+        wasFastCorrect:
+          isCorrect &&
+          wasIntenseAnswerBeforeHalf(timeRemainingMs, timeLimitMs),
+      });
+      saveIntenseWeightsWithKey(
+        storage,
+        appState.radicalIntenseWeights,
+        RADICAL_INTENSE_WEIGHT_STORAGE_KEY
+      );
+      return;
+    }
 
     applyIntenseWeightAnswer(weights, wordId, {
       isCorrect: isCorrect,
@@ -338,7 +375,7 @@ export function createApp(options = {}) {
       dom.start.rangeStartInput.value,
       dom.start.rangeEndInput.value,
       appState.selectedRange,
-      vocabulary.length
+      getStartTotal()
     );
 
     appState.selectedRange = nextRange;
@@ -361,9 +398,21 @@ export function createApp(options = {}) {
           ? "intense-hard"
         : dom.start.modeSelect.value === "writing"
           ? "writing"
+        : dom.start.modeSelect.value === "radicals-review"
+          ? "radicals-review"
+        : dom.start.modeSelect.value === "radicals-intense"
+          ? "radicals-intense"
           : "practice";
 
     appState.selectedMode = nextMode;
+    syncStartRangeLimits(nextMode);
+    appState.selectedRange = normalizeRange(
+      appState.selectedRange.start,
+      appState.selectedRange.end,
+      appState.selectedRange,
+      getStartTotal(nextMode)
+    );
+    writeStartRangeInputs(dom, appState.selectedRange);
     renderStart();
     return nextMode;
   }
@@ -489,6 +538,28 @@ export function createApp(options = {}) {
     startIntenseTimer();
   }
 
+  function startRadicalIntense(range) {
+    appState.run = null;
+    resetWritingState();
+    resetReviewState();
+    clearIntenseState();
+    appState.intenseSession = createIntenseSession(
+      range,
+      radicals,
+      radicalMeaningPool,
+      appState.radicalIntenseWeights,
+      {
+        dataKind: "radical",
+        promptLabel: "Radicales intenso",
+        meaningsByPrompt: radicalMeaningsByPrompt,
+      }
+    );
+    advanceIntenseQuestion(appState.intenseSession, randomFn);
+    setScreen("intense");
+    renderIntensePage();
+    startIntenseTimer();
+  }
+
   function startWriting(range) {
     appState.run = null;
     clearIntenseState();
@@ -512,6 +583,20 @@ export function createApp(options = {}) {
       markedWordIds: appState.reviewMarkedWordIds,
       range: range,
       total: vocabulary.length,
+    });
+    setScreen("review");
+  }
+
+  function startRadicalsReview(range) {
+    appState.run = null;
+    clearIntenseState();
+    resetWritingState();
+    resetReviewState();
+    renderReview(dom, {
+      entries: getRangeEntries(radicals, range),
+      markedWordIds: appState.reviewMarkedWordIds,
+      range: range,
+      total: radicals.length,
     });
     setScreen("review");
   }
@@ -558,6 +643,16 @@ export function createApp(options = {}) {
       return;
     }
 
+    if (selectedMode === "radicals-review") {
+      startRadicalsReview(selectedRange);
+      return;
+    }
+
+    if (selectedMode === "radicals-intense") {
+      startRadicalIntense(selectedRange);
+      return;
+    }
+
     startRun(selectedRange);
   }
 
@@ -593,7 +688,11 @@ export function createApp(options = {}) {
     stopIntenseTimer();
     currentWordId = appState.intenseSession.run.currentWord.id;
     isCorrect = submitIntenseAnswer(appState.intenseSession, answerValue);
-    recordGlobalAnswerResult(currentWordId, isCorrect);
+
+    if (appState.intenseSession.dataKind !== "radical") {
+      recordGlobalAnswerResult(currentWordId, isCorrect);
+    }
+
     recordIntenseWeightResult(
       currentWordId,
       isCorrect,
@@ -965,9 +1064,13 @@ export function createApp(options = {}) {
       vocabulary,
       INTENSE_HARD_WEIGHT_STORAGE_KEY
     );
+    appState.radicalIntenseWeights = loadIntenseWeightsWithKey(
+      storage,
+      radicals,
+      RADICAL_INTENSE_WEIGHT_STORAGE_KEY
+    );
 
-    dom.start.rangeStartInput.max = String(vocabulary.length);
-    dom.start.rangeEndInput.max = String(vocabulary.length);
+    syncStartRangeLimits();
 
     applyTheme(appState.selectedTheme);
     writeStartRangeInputs(dom, appState.selectedRange);

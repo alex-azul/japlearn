@@ -56,6 +56,8 @@ export function createIntenseSession(
     run: createRunState(range, vocabulary, meaningPool),
     intenseWeightsById: intenseWeightsById,
     answerMode: answerMode,
+    dataKind: options.dataKind || "vocabulary",
+    promptLabel: options.promptLabel || "",
     meaningsByPrompt:
       options.meaningsByPrompt || createMeaningsByPrompt(vocabulary),
     currentAcceptedMeanings: [],

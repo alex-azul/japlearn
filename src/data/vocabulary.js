@@ -9,6 +9,7 @@ export function loadVocabulary(rawEntries = []) {
         furigana: trimText(entry.furigana),
         romaji: trimText(entry.romaji),
         meaning: trimText(entry.meaning),
+        mnemonic: trimText(entry.mnemonic),
       };
     })
     .filter(function (entry) {
